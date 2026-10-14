@@ -1,4 +1,4 @@
-/* Small page helpers: copy-to-clipboard buttons and confirm-before-submit forms. */
+
 document.addEventListener("click", function (ev) {
   var btn = ev.target.closest("[data-copy]");
   if (!btn) return;

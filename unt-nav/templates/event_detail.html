@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ event.name }}{% endblock %}
+{% block content %}
+  <p class="eyebrow">Event{% if event.status == 'cancelled' %} · <span class="badge badge-cancelled">Cancelled</span>{% endif %}</p>
+  <h1>{{ event.name }}</h1>
+
+  <div class="card">
+    <dl class="details">
+      <dt>When</dt><dd>{{ event.event_date|fmt_date }} · {{ event.event_time|fmt_time }}</dd>
+      <dt>Where</dt><dd>{{ room_place(event.room) }}</dd>
+      {% if event.description %}<dt>About</dt><dd>{{ event.description }}</dd>{% endif %}
+    </dl>
+    {% if event.status == 'active' %}
+      <a class="btn btn-primary btn-block" href="{{ url_for('find', room=event.room, action='search') }}">Get directions &rarr;</a>
+    {% endif %}
+  </div>
+
+  {% if event.status == 'active' %}
+    <div class="card">
+      <label for="share">Share this event</label>
+      <div class="share-row">
+        <input id="share" type="text" value="{{ share }}" readonly>
+        <button class="btn btn-outline btn-sm" type="button" data-copy="share">Copy</button>
+      </div>
+    </div>
+  {% endif %}
+
+  {% if can_manage_event(event) and event.status == 'active' %}
+    <div class="actions">
+      <a class="btn btn-outline" href="{{ url_for('event_edit', event_id=event.id) }}">Edit</a>
+      <form method="post" action="{{ url_for('event_cancel', event_id=event.id) }}" data-confirm="Cancel {{ event.name }}?">
+        {{ csrf_field() }}<button class="btn btn-outline" type="submit">Cancel event</button>
+      </form>
+    </div>
+  {% endif %}
+  <div class="links"><a href="{{ url_for('events') }}">&larr; All events</a></div>
+{% endblock %}

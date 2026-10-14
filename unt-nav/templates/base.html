@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en"{% if prefs.largetext %} class="large-text"{% endif %}>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#13723a">
+  <title>{% block title %}UNT Navigation{% endblock %} · Discovery Park</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='js/ui.js') }}" defer></script>
+</head>
+<body>
+  {% macro tab_link(endpoint, label, key) -%}
+    <a class="tab{% if tab == key %} active{% endif %}" href="{{ url_for(endpoint) }}"{% if tab == key %} aria-current="page"{% endif %}>{{ label }}</a>
+  {%- endmacro %}
+
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('welcome') }}">
+      <svg class="brand-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z M9 4v14 M15 6v14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M12 8.2a2 2 0 0 0-2 2c0 1.6 2 3.6 2 3.6s2-2 2-3.6a2 2 0 0 0-2-2z" fill="currentColor"/>
+      </svg>
+      <span>
+        <span class="brand-name"><b>UNT</b> NAVIGATION</span>
+        <span class="brand-sub">Discovery Park</span>
+      </span>
+    </a>
+    {% set user = current_user() %}
+    {% if user %}
+      <a class="btn btn-primary btn-sm" href="{{ url_for('account') }}">{{ HEADER_LABELS[user.role] }}</a>
+    {% else %}
+      <a class="btn btn-primary btn-sm" href="{{ url_for('login') }}">Log in</a>
+    {% endif %}
+  </header>
+
+  <nav class="tabs" aria-label="Sections">
+    {% if admin_area %}
+      {{ tab_link('admin_dashboard', 'Dashboard', 'dashboard') }}
+      {{ tab_link('admin_maps', 'Maps', 'maps') }}
+      {{ tab_link('admin_reports', 'Reports', 'reports') }}
+    {% else %}
+      {{ tab_link('find', 'Find a place', 'find') }}
+      {{ tab_link('wings', 'Explore', 'explore') }}
+      {{ tab_link('accessibility', 'Accessibility', 'accessibility') }}
+    {% endif %}
+  </nav>
+
+  <main class="page {% block page_class %}{% endblock %}">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flashes" role="alert">
+          {% for category, message in messages %}
+            <div class="flash flash-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+
+  {% block footer %}{% endblock %}
+  {% block scripts %}{% endblock %}
+</body>
+</html>

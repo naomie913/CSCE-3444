@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% from "_macros.html" import field, textarea %}
+{% block title %}{{ 'Edit event' if editing else 'Create event' }}{% endblock %}
+{% block content %}
+  <p class="eyebrow">Event organizer</p>
+  <h1>{{ 'Edit event' if editing else 'Create event' }}</h1>
+
+  <form method="post" novalidate
+        action="{{ url_for('event_edit', event_id=event.id) if editing else url_for('event_new') }}">
+    {{ csrf_field() }}
+    <div class="card">
+      {{ field('name', 'Event name', form.name, errors, placeholder='Enter event name', attrs='maxlength="100" required') }}
+      <div class="field-row">
+        {{ field('event_date', 'Date', form.event_date, errors, type='date', attrs='required') }}
+        {{ field('event_time', 'Time', form.event_time, errors, type='time', attrs='required') }}
+      </div>
+      {{ textarea('description', 'Description', form.description, errors, placeholder='Describe the event') }}
+      <div class="field-row">
+        <div class="field{% if errors.get('wing') %} has-error{% endif %}">
+          <label for="wing">Wing</label>
+          <select id="wing" name="wing">
+            {% for w in wings %}<option value="{{ w }}"{% if w == form.wing %} selected{% endif %}>Wing {{ w }}</option>{% endfor %}
+          </select>
+          {% if errors.get('wing') %}<p class="field-error">{{ errors.wing }}</p>{% endif %}
+        </div>
+        {{ field('room', 'Room', form.room, errors, placeholder='ex: B240', attrs='required autocapitalize="characters"') }}
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" type="submit">{{ 'Save changes' if editing else 'Publish' }}</button>
+      <a class="btn btn-outline" href="{{ url_for('event_detail', event_id=event.id) if editing else url_for('events') }}">Cancel</a>
+    </div>
+  </form>
+{% endblock %}

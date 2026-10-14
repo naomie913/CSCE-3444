@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+  <p class="eyebrow">Admin · Reports</p>
+  <h1>User reports</h1>
+
+  <nav class="seg seg-boxed" aria-label="Report status" style="margin-bottom:14px">
+    {% for key, label in statuses.items() %}
+      <a class="seg-btn{% if key == status %} on{% endif %}" href="{{ url_for('admin_reports', status=key) }}"{% if key == status %} aria-current="page"{% endif %}>{{ label }}</a>
+    {% endfor %}
+  </nav>
+
+  {% if reports %}
+    <ul class="list">
+      {% for r in reports %}
+        <li><a class="row-card" href="{{ url_for('admin_report_detail', report_id=r.id) }}">
+          <span class="row-main">
+            <span class="row-title">{{ categories.get(r.category, r.category) }}{% if r.location %} · {{ r.location }}{% endif %}</span>
+            <span class="row-sub">Wing {{ r.wing }}{% if r.level %}, Level {{ r.level }}{% endif %} · {{ r.created_at|ago }} · {{ r.username or 'deleted user' }}</span>
+          </span>
+          <span class="row-arrow" aria-hidden="true">&rarr;</span>
+        </a></li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="card"><p class="muted" style="margin:0">No {{ statuses[status]|lower }} reports.</p></div>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Report #{{ report.id }}{% endblock %}
+{% block content %}
+  <p class="eyebrow">Admin · Report #{{ report.id }} · <span class="badge badge-{{ report.status }}">{{ statuses[report.status] }}</span></p>
+  <h1>{{ categories.get(report.category, report.category) }}</h1>
+
+  <div class="card">
+    <dl class="details">
+      <dt>Where</dt><dd>Wing {{ report.wing }}{% if report.level %}, Level {{ report.level }}{% endif %}{% if report.location %} · {{ report.location }}{% endif %}</dd>
+      <dt>From</dt><dd>{{ report.username or 'deleted user' }} · {{ report.created_at|ago }}</dd>
+      <dt>Details</dt><dd>{{ report.details }}</dd>
+    </dl>
+  </div>
+
+  <form method="post" action="{{ url_for('admin_report_detail', report_id=report.id) }}">
+    {{ csrf_field() }}
+    <div class="card">
+      <div class="field">
+        <label for="admin_note">Admin notes</label>
+        <textarea id="admin_note" name="admin_note" placeholder="What was done, or extra details">{{ report.admin_note }}</textarea>
+      </div>
+      <button class="btn btn-outline btn-block" name="action" value="note" type="submit">Save notes</button>
+    </div>
+    <div class="actions">
+      {% if report.status == 'open' %}
+        <button class="btn btn-primary" name="action" value="fix" type="submit">Mark fixed</button>
+        <button class="btn btn-outline" name="action" value="dismiss" type="submit">Dismiss</button>
+      {% else %}
+        <button class="btn btn-outline" name="action" value="reopen" type="submit">Reopen</button>
+        <a class="btn btn-outline" href="{{ url_for('admin_closures') }}">Mark closure</a>
+      {% endif %}
+    </div>
+  </form>
+  <div class="links">
+    {% if report.status == 'open' %}<a href="{{ url_for('admin_closures') }}">Mark a closure for this</a>{% endif %}
+    <a href="{{ url_for('admin_reports', status=report.status) }}">&larr; All {{ statuses[report.status]|lower }} reports</a>
+  </div>
+{% endblock %}

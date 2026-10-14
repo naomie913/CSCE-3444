@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% from "_macros.html" import search_icon %}
+{% block title %}Find a place{% endblock %}
+{% block content %}
+  <p class="eyebrow">Discovery Park · Wayfinding{% if wing %} · Wing {{ wing }}{% endif %}</p>
+  <h1>Find your destination</h1>
+  <p class="lead">Search a space, tell us where you're starting, and preview the journey.</p>
+
+  <form method="get" action="{{ url_for('find') }}" class="stack" novalidate>
+    {% if wing %}<input type="hidden" name="wing" value="{{ wing }}">{% endif %}
+
+    <section class="card">
+      <h2 class="step-title"><span class="step-icon" aria-hidden="true">&#9906;</span>1. Where are you going?</h2>
+      <div class="searchbar{% if error %} invalid{% endif %}">
+        {{ search_icon() }}
+        <input name="room" value="{{ q }}" placeholder="Room number, e.g. B205" aria-label="Room number"
+               autocomplete="off" autocapitalize="characters"
+               {% if error %}aria-invalid="true" aria-describedby="room-err"{% endif %}>
+        <button class="btn btn-primary btn-sm" name="action" value="search">Search</button>
+      </div>
+      {% if error %}
+        <div class="error-box" id="room-err" role="alert">{{ error }}</div>
+      {% elif match %}
+        <p class="hint">{{ LOCATION_TYPES[match.room.type].singular }} {{ match.room.id }}{% if match.room.name %} · {{ match.room.name }}{% endif %} · Wing {{ match.wing }}, Level {{ match.level }}</p>
+      {% else %}
+        <p class="hint">Not sure of the number? <a href="{{ url_for('wing_types', wing=wing) if wing else url_for('wings') }}">Browse by type</a>.</p>
+      {% endif %}
+    </section>
+
+    <section class="card">
+      <h2 class="step-title"><span class="step-icon" aria-hidden="true">&#8645;</span>2. Set your starting point</h2>
+
+      <div class="field{% if start_error %} has-error{% endif %}">
+        <label for="from">Where are you now? <span class="muted small" style="font-weight:500">(optional)</span></label>
+        <input id="from" name="from" type="text" list="start-options" value="{{ start_text }}"
+               placeholder="Room number or landmark, e.g. B192" autocomplete="off" autocapitalize="characters"
+               {% if start_error %}aria-invalid="true" aria-describedby="from-err"{% else %}aria-describedby="from-hint"{% endif %}>
+        <datalist id="start-options">
+          {% for opt in start_options %}<option value="{{ opt }}">{% endfor %}
+        </datalist>
+        {% if start_error %}
+          <div class="error-box" id="from-err" role="alert">{{ start_error }}</div>
+        {% elif start %}
+          <p class="hint" id="from-hint">Starting from {{ start.label }} · Wing {{ start.wing }}, Level {{ start.level }}</p>
+        {% else %}
+          <p class="hint" id="from-hint">Type the room you're in or next to, or pick a landmark. Leave blank to start at the {{ default_label }}.</p>
+        {% endif %}
+      </div>
+
+      {% if start %}
+        <input type="hidden" name="level" value="{{ level }}">
+      {% elif levels %}
+        <p class="label" id="level-q" style="margin-top:14px">Which floor are you on right now?</p>
+        <div class="seg" role="radiogroup" aria-labelledby="level-q">
+          {% for lv in levels %}
+            <label class="seg-opt"><input type="radio" name="level" value="{{ lv }}"{% if lv == level %} checked{% endif %}><span>Level {{ lv }}</span></label>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="error-box">No floor maps are available for this wing right now.</div>
+      {% endif %}
+      <label class="check-row">
+        <input type="checkbox" name="stepfree" value="1"{% if stepfree %} checked{% endif %}>
+        <span><span aria-hidden="true">&#9855;</span> Prefer step-free access</span>
+      </label>
+    </section>
+
+    <button class="btn btn-primary btn-block" name="action" value="go">Get directions &rarr;</button>
+  </form>
+
+  {% set user = current_user() %}
+  {% if user and user.role != 'guest' %}
+    <div class="links"><a href="{{ url_for('saved') }}">My saved places</a></div>
+  {% endif %}
+{% endblock %}

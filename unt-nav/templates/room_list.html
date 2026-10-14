@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}{{ info.label }} · Wing {{ wing }}{% endblock %}
+{% block content %}
+  <p class="eyebrow">Wing {{ wing }} · {{ info.label }}</p>
+  <h1>{{ info.label }}</h1>
+
+  {% if rooms %}
+    <ul class="list">
+      {% for m in rooms %}
+        <li><a class="row-card" href="{{ url_for('find', room=m.room.id, wing=wing, action='search') }}">
+          <span class="row-icon" aria-hidden="true">{{ info.icon }}</span>
+          <span class="row-main">
+            <span class="row-title">{{ m.room.label if m.room.label != m.room.id else m.room.id }}{% if m.room.name and m.room.name not in m.room.label %} · {{ m.room.name }}{% endif %}</span>
+            <span class="row-sub">Level {{ m.level }}{% if m.room.note %} · {{ m.room.note }}{% endif %}</span>
+          </span>
+          <span class="row-arrow" aria-hidden="true">&rarr;</span>
+        </a></li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="lead">No {{ info.label|lower }} in Wing {{ wing }}.</p>
+  {% endif %}
+  <div class="links"><a href="{{ url_for('wing_types', wing=wing) }}">&larr; Back to Wing {{ wing }}</a></div>
+{% endblock %}

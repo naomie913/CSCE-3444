@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Wing {{ wing }} floor map{% endblock %}
+{% block content %}
+  <p class="eyebrow">Wing {{ wing }}</p>
+  <h1>Floor overview</h1>
+
+  <div id="overview-app" data-wing="{{ wing }}" data-room="{{ room }}" data-level="{{ level or '' }}"
+       data-api="{{ url_for('api_wing', wing=wing) }}" data-find-url="{{ url_for('find') }}">
+    <p id="overview-loading" class="muted">Loading map…</p>
+    <div id="overview-error" class="error-box" hidden>The map for Wing {{ wing }} couldn't load. Reload the page to try again.</div>
+
+    <div id="overview-body" hidden>
+      <div class="seg" id="overview-levels" style="margin-bottom:14px"></div>
+      <div class="card map-card">
+        <div class="map-head">
+          <div>
+            <h2 class="map-title">Wing {{ wing }}</h2>
+            <p class="muted small" style="margin:2px 0 0">{{ wing_info.source }}</p>
+          </div>
+          <span class="badge" id="overview-badge"></span>
+        </div>
+        <svg id="overview-map" class="floor-map" role="img"></svg>
+      </div>
+
+      <p id="overview-hint" class="hint center">Tap a room to go there, or to start your route from it. Closures are marked in red.</p>
+      <div id="overview-room" class="card" style="margin-top:14px" hidden>
+        <h2 id="overview-room-title"></h2>
+        <p id="overview-room-sub" class="muted" style="margin:0"></p>
+        <div class="actions">
+          <a id="overview-room-go" class="btn btn-primary" href="#">Go here &rarr;</a>
+          <a id="overview-room-from" class="btn btn-outline" href="#">I'm here</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="links"><a href="{{ url_for('wing_types', wing=wing) }}">&larr; Back to Wing {{ wing }}</a></div>
+{% endblock %}
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/navmap.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/overview.js') }}"></script>
+{% endblock %}

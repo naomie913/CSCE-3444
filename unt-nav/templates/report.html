@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% from "_macros.html" import field, textarea, select %}
+{% block title %}Report a map problem{% endblock %}
+{% block content %}
+  <p class="eyebrow">Help improve the map</p>
+  <h1>Report a problem</h1>
+  <p class="lead">Tell us about wrong information, a missing room or a blocked path. An admin will review it.</p>
+
+  <form method="post" action="{{ url_for('report') }}" novalidate>
+    {{ csrf_field() }}
+    <div class="card">
+      {{ select('category', 'What kind of problem?', categories.items(), form.category, errors) }}
+      <div class="field-row">
+        <div class="field{% if errors.get('wing') %} has-error{% endif %}">
+          <label for="wing">Wing</label>
+          <select id="wing" name="wing">
+            {% for w in wings %}<option value="{{ w }}"{% if w == form.wing %} selected{% endif %}>Wing {{ w }}</option>{% endfor %}
+          </select>
+          {% if errors.get('wing') %}<p class="field-error">{{ errors.wing }}</p>{% endif %}
+        </div>
+        {{ select('level', 'Level', [('', 'Not sure'), ('1', 'Level 1'), ('2', 'Level 2')], form.level, errors) }}
+      </div>
+      {{ field('location', 'Room or area (optional)', form.location, errors, placeholder='e.g. B205 or east hallway', attrs='maxlength="100"') }}
+      {{ textarea('details', 'Details', form.details, errors, placeholder='What did you notice?') }}
+    </div>
+    <button class="btn btn-primary btn-block" type="submit">Send report</button>
+  </form>
+{% endblock %}

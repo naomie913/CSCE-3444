@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Admin dashboard{% endblock %}
+{% block content %}
+  <p class="eyebrow">Admin</p>
+  <h1>Dashboard</h1>
+
+  <div class="tile-grid">
+    <a class="tile" href="{{ url_for('admin_maps') }}">
+      <span class="row-icon" aria-hidden="true">&#9638;</span>Add / remove map
+      <small>{{ stats.removed_maps }} removed</small>
+    </a>
+    <a class="tile" href="{{ url_for('admin_closures') }}">
+      <span class="row-icon" aria-hidden="true">&#9888;</span>Mark closure
+      <small>{{ stats.closures }} active</small>
+    </a>
+    <a class="tile" href="{{ url_for('admin_users') }}">
+      <span class="row-icon" aria-hidden="true">&#9919;</span>Manage credentials
+      <small>{{ stats.users }} accounts</small>
+    </a>
+    <a class="tile" href="{{ url_for('admin_reports') }}">
+      <span class="row-icon" aria-hidden="true">&#9776;</span>Manage reports
+      <small>{{ stats.open_reports }} open</small>
+    </a>
+  </div>
+
+  <p class="section-label">Recent user reports</p>
+  {% if recent %}
+    <ul class="list">
+      {% for r in recent %}
+        <li><a class="row-card" href="{{ url_for('admin_report_detail', report_id=r.id) }}">
+          <span class="row-main">
+            <span class="row-title">{{ categories.get(r.category, r.category) }}{% if r.location %} · {{ r.location }}{% endif %}</span>
+            <span class="row-sub">Wing {{ r.wing }}{% if r.level %}, Level {{ r.level }}{% endif %} · {{ r.created_at|ago }}</span>
+          </span>
+          <span class="row-arrow" aria-hidden="true">&rarr;</span>
+        </a></li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="card"><p class="muted" style="margin:0">No open reports.</p></div>
+  {% endif %}
+
+  <div class="links"><a href="{{ url_for('find') }}">Open the student view</a></div>
+{% endblock %}

@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Route to {{ match.room.id }}{% endblock %}
+{% block content %}
+  {% set room = match.room.id %}
+  {% set find_url = url_for('find', room=room, level=level, stepfree=1 if stepfree else 0, action='search', **({'from': start_text} if start else {})) %}
+  <div id="route-app"
+       data-wing="{{ match.wing }}" data-room="{{ room }}" data-level="{{ level }}"
+       data-start="{{ start.node if start else '' }}"
+       data-stepfree="{{ 1 if stepfree else 0 }}" data-autoread="{{ 1 if prefs.autoread else 0 }}"
+       data-api="{{ url_for('api_wing', wing=match.wing) }}"
+       data-closures-api="{{ url_for('api_closures', wing=match.wing) }}">
+
+    <section id="route-loading">
+      <p class="eyebrow">Discovery Park · Wayfinding</p>
+      <h1>Preparing your route</h1>
+      <div class="loading-wrap">
+        <div class="card loading-card">
+          <h2 class="loading-title">Map loading</h2>
+          <div class="progress" id="route-progress" role="progressbar" aria-label="Map loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div class="progress-bar" id="route-bar"></div>
+          </div>
+          <p class="muted" id="route-pct">0% completed</p>
+          <p class="muted">Loading Wing {{ match.wing }}, Level{{ 's' if levels|length > 1 }} {{ levels|join(' and ') }}. This might take a moment.</p>
+        </div>
+      </div>
+      <a class="btn btn-outline btn-block" href="{{ find_url }}">Cancel</a>
+    </section>
+
+    <section id="route-error" hidden>
+      <p class="eyebrow">Discovery Park · Wayfinding</p>
+      <h1>Route unavailable</h1>
+      <div class="error-box" id="route-error-msg" role="alert"></div>
+      <div class="actions">
+        <button class="btn btn-primary" id="route-retry" type="button">Try again</button>
+        <a class="btn btn-outline" href="{{ find_url }}">Back to search</a>
+      </div>
+      <div class="links"><a href="{{ url_for('report', wing=match.wing, level=match.level, room=room) }}">Report a map problem</a></div>
+    </section>
+
+    <section id="route-view" hidden>
+      <p class="eyebrow">Route preview</p>
+      <h1>To {{ room }}</h1>
+      <p class="lead" style="margin-top:-6px">
+        {% if match.room.name %}{{ match.room.name }}<br>{% endif %}
+        <span class="small">From {{ start.label if start else 'the ' ~ default_start_label }} · <a href="{{ find_url }}">Change</a></span>
+      </p>
+      <div id="route-notice" class="flash flash-success" role="status" hidden></div>
+      <div class="chips">
+        <span class="chip" id="route-levels"></span>
+        <span class="chip" id="route-eta"></span>
+      </div>
+
+      <div class="card map-card">
+        <div class="map-head">
+          <div>
+            <h2 class="map-title">Wing {{ match.wing }}</h2>
+            <p class="muted small" style="margin:2px 0 0">{{ wing_info.source }}</p>
+          </div>
+          <span class="badge" id="route-level-badge"></span>
+        </div>
+        <div class="seg" id="route-level-btns"></div>
+        <svg id="route-map" class="floor-map" role="img"></svg>
+      </div>
+
+      <div class="next-card" aria-live="polite">
+        <p><strong id="route-step-label">Next:</strong> <span id="route-step-text"></span></p>
+        <div class="step-nav">
+          <button class="btn btn-outline btn-sm" id="route-prev" type="button">&larr; Back</button>
+          <span class="muted small" id="route-step-count"></span>
+          <button class="btn btn-primary btn-sm" id="route-next" type="button">Next step &rarr;</button>
+        </div>
+      </div>
+      <ol class="step-list" id="route-steps" hidden></ol>
+
+      <div class="actions">
+        <button class="btn btn-outline" id="route-text-btn" type="button" aria-expanded="false" aria-controls="route-steps">Text directions</button>
+        <button class="btn btn-outline" id="route-audio-btn" type="button">Audio</button>
+      </div>
+      <div class="links">
+        <a href="{{ url_for('report', wing=match.wing, level=match.level, room=room) }}">Report a map problem</a>
+        <a href="{{ url_for('find') }}">Start over</a>
+      </div>
+      <p class="muted small center">Your starting point is only used for this route and is never saved.</p>
+    </section>
+  </div>
+{% endblock %}
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/navmap.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/route.js') }}"></script>
+{% endblock %}

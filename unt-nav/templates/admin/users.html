@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Manage credentials{% endblock %}
+{% block content %}
+  <p class="eyebrow">Admin · Credentials</p>
+  <h1>Manage accounts</h1>
+  {% set me = current_user() %}
+
+  <ul class="list">
+    {% for u in users %}
+      <li class="card user-row">
+        <div class="user-head">
+          <span>
+            <span class="row-title">{{ u.username }}{% if u.id == me.id %} (you){% endif %}</span>
+            <span class="row-sub">{{ roles[u.role] }} · joined {{ u.created_at[:10] }}</span>
+          </span>
+          {% if u.id != me.id %}
+            <form method="post" action="{{ url_for('admin_user_update', user_id=u.id) }}" style="margin:0"
+                  data-confirm="Delete {{ u.username }}? Their saved places are deleted too.">
+              {{ csrf_field() }}<button class="btn btn-outline btn-xs" name="action" value="delete" type="submit">Delete</button>
+            </form>
+          {% endif %}
+        </div>
+        {% if u.id != me.id %}
+          <form method="post" action="{{ url_for('admin_user_update', user_id=u.id) }}">
+            {{ csrf_field() }}
+            <select name="role" aria-label="Role for {{ u.username }}">
+              {% for key, label in roles.items() %}<option value="{{ key }}"{% if key == u.role %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+            <button class="btn btn-outline btn-sm" name="action" value="role" type="submit">Save role</button>
+          </form>
+        {% endif %}
+        <form method="post" action="{{ url_for('admin_user_update', user_id=u.id) }}">
+          {{ csrf_field() }}
+          <input type="password" name="password" placeholder="New password (8+ characters)" autocomplete="new-password" aria-label="New password for {{ u.username }}">
+          <button class="btn btn-outline btn-sm" name="action" value="reset" type="submit">Reset</button>
+        </form>
+      </li>
+    {% endfor %}
+  </ul>
+  <div class="links"><a href="{{ url_for('admin_dashboard') }}">&larr; Dashboard</a></div>
+{% endblock %}

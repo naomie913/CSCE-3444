@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% from "_macros.html" import field %}
+{% block title %}Add saved place{% endblock %}
+{% block content %}
+  <p class="eyebrow">My schedule</p>
+  <h1>{{ 'Add a class' if kind == 'schedule' else 'Save a location' }}</h1>
+
+  <form method="post" action="{{ url_for('saved_new') }}" novalidate>
+    {{ csrf_field() }}
+    <input type="hidden" name="kind" value="{{ kind }}">
+    <div class="card">
+      {% if kind == 'schedule' %}
+        {{ field('title', 'Class or meeting', form.title, errors, placeholder='e.g. CSCE 3444', attrs='maxlength="60" required') }}
+        <div class="field-row">
+          {{ field('days', 'Days', form.days, errors, placeholder='Mon/Wed', attrs='maxlength="30" required') }}
+          {{ field('start_time', 'Start time', form.start_time, errors, type='time', attrs='required') }}
+        </div>
+      {% else %}
+        {{ field('title', 'Name', form.title, errors, placeholder='e.g. Advising', attrs='maxlength="60" required') }}
+      {% endif %}
+      {{ field('room', 'Room', form.room, errors, placeholder='e.g. B140', attrs='required autocapitalize="characters"') }}
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" type="submit">Save</button>
+      <a class="btn btn-outline" href="{{ url_for('saved', tab='locations' if kind == 'location' else None) }}">Cancel</a>
+    </div>
+  </form>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Closures{% endblock %}
+{% block content %}
+  <p class="eyebrow">Admin · Closures</p>
+  <h1>Mark closure</h1>
+  <p class="lead">Closed hallways, stairs and entrances are marked in red on the map, and routes go around them.</p>
+
+  <form method="post" action="{{ url_for('admin_closures') }}" novalidate>
+    {{ csrf_field() }}
+    <div class="card">
+      <div class="field{% if errors.get('target') %} has-error{% endif %}">
+        <label for="target">What is closed?</label>
+        <select id="target" name="target">
+          <option value="">Choose…</option>
+          {% for wing, level, targets in groups %}
+            <optgroup label="Wing {{ wing }} · Level {{ level }}">
+              {% for ttype, tid, name in targets %}
+                <option value="{{ wing }}|{{ level }}|{{ ttype }}|{{ tid }}">{{ name }}</option>
+              {% endfor %}
+            </optgroup>
+          {% endfor %}
+        </select>
+        {% if errors.get('target') %}<p class="field-error">{{ errors.target }}</p>{% endif %}
+      </div>
+      <div class="field{% if errors.get('note') %} has-error{% endif %}">
+        <label for="note">Note (optional)</label>
+        <input id="note" name="note" type="text" maxlength="200" placeholder="e.g. Construction until Nov 20">
+        {% if errors.get('note') %}<p class="field-error">{{ errors.note }}</p>{% endif %}
+      </div>
+    </div>
+    <button class="btn btn-primary btn-block" type="submit">Mark closed</button>
+  </form>
+
+  <p class="section-label">Active closures</p>
+  {% if closures %}
+    <ul class="list">
+      {% for c in closures %}
+        <li class="row-card">
+          <span class="row-icon" aria-hidden="true" style="color:var(--error);background:var(--error-bg)">&#10005;</span>
+          <span class="row-main">
+            <span class="row-title">{{ c.name }}</span>
+            <span class="row-sub">Wing {{ c.wing }}, Level {{ c.level }}{% if c.note %} · {{ c.note }}{% endif %} · {{ c.created_at|ago }}</span>
+          </span>
+          <form method="post" action="{{ url_for('admin_closure_delete', closure_id=c.id) }}">
+            {{ csrf_field() }}<button class="btn btn-outline btn-sm" type="submit">Reopen</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="card"><p class="muted" style="margin:0">Nothing is closed right now.</p></div>
+  {% endif %}
+  <div class="links"><a href="{{ url_for('admin_dashboard') }}">&larr; Dashboard</a></div>
+{% endblock %}

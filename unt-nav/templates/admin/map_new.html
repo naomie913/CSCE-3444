@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Add map{% endblock %}
+{% block content %}
+  <p class="eyebrow">Admin · Maps</p>
+  <h1>Add a map</h1>
+  <p class="lead">Put a removed level back online, or upload a new floor plan for any level.</p>
+
+  <form method="post" action="{{ url_for('admin_map_new') }}" enctype="multipart/form-data" novalidate>
+    {{ csrf_field() }}
+    <div class="card">
+      <div class="field{% if errors.get('target') %} has-error{% endif %}">
+        <label for="target">Wing and level</label>
+        <select id="target" name="target">
+          <option value="">Choose…</option>
+          {% for m in maps %}
+            {% set key = m.wing ~ '-' ~ m.level %}
+            <option value="{{ key }}"{% if key == selected or (not selected and not m.active and loop.first) %} selected{% endif %}>
+              Wing {{ m.wing }} - Level {{ m.level }}{{ ' (removed)' if not m.active else ' (replace plan)' }}
+            </option>
+          {% endfor %}
+        </select>
+        {% if errors.get('target') %}<p class="field-error">{{ errors.target }}</p>{% endif %}
+      </div>
+      <div class="field{% if errors.get('floorplan') %} has-error{% endif %}">
+        <label for="floorplan">Floor plan file (optional)</label>
+        <input id="floorplan" name="floorplan" type="file" accept=".svg,.json,.png,.jpg,.jpeg,.pdf">
+        {% if errors.get('floorplan') %}<p class="field-error">{{ errors.floorplan }}</p>{% endif %}
+        <p class="hint">SVG, JSON, PNG, JPG or PDF, up to 10 MB. Uploaded plans are stored for the map team to digitize with the map editor.</p>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" type="submit">Publish map</button>
+      <a class="btn btn-outline" href="{{ url_for('admin_maps') }}">Cancel</a>
+    </div>
+  </form>
+{% endblock %}

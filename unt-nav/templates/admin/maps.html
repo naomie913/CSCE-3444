@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Manage maps{% endblock %}
+{% block content %}
+  <p class="eyebrow">Admin · Maps</p>
+  <h1>Manage maps</h1>
+  <a class="btn btn-primary btn-block" style="margin-top:0" href="{{ url_for('admin_map_new') }}">+ Add new map</a>
+
+  <p class="section-label">Existing maps</p>
+  <ul class="list">
+    {% for m in maps %}
+      {% set key = m.wing ~ '-' ~ m.level %}
+      <li class="row-card{% if confirm == key %} selected{% endif %}{% if not m.active %} off{% endif %}">
+        <span class="row-main">
+          <span class="row-title">Wing {{ m.wing }} - Level {{ m.level }}</span>
+          {% if not m.active %}<span class="row-sub">Removed · routes avoid this level</span>
+          {% elif m.source_file %}<span class="row-sub">Uploaded plan: {{ m.source_file }}</span>{% endif %}
+        </span>
+        {% if m.active %}
+          <a class="btn btn-outline btn-sm" href="{{ url_for('admin_maps', confirm=key) }}#confirm">Remove</a>
+        {% else %}
+          <a class="btn btn-outline btn-sm" href="{{ url_for('admin_map_new') }}">Restore</a>
+        {% endif %}
+      </li>
+      {% if confirm == key and m.active %}
+        <li class="confirm-box" id="confirm" role="alertdialog" aria-labelledby="confirm-title">
+          <p><strong id="confirm-title">Remove Wing {{ m.wing }} - Level {{ m.level }}?</strong><br>Active routes on this level will be recalculated.</p>
+          <form class="actions" style="margin:0" method="post" action="{{ url_for('admin_map_remove') }}">
+            {{ csrf_field() }}
+            <input type="hidden" name="wing" value="{{ m.wing }}">
+            <input type="hidden" name="level" value="{{ m.level }}">
+            <button class="btn btn-danger" type="submit">Confirm</button>
+            <a class="btn btn-outline" href="{{ url_for('admin_maps') }}">Cancel</a>
+          </form>
+        </li>
+      {% endif %}
+    {% endfor %}
+  </ul>
+{% endblock %}

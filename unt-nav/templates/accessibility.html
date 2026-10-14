@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Accessibility{% endblock %}
+{% block content %}
+  <p class="eyebrow">Accessibility</p>
+  <h1>Your settings</h1>
+  <p class="lead">These settings apply on this device while you use UNT Navigation.</p>
+
+  <form method="post" action="{{ url_for('accessibility') }}">
+    {{ csrf_field() }}
+    <div class="card">
+      <label class="check-row" style="margin-top:0">
+        <input type="checkbox" name="stepfree" value="1"{% if prefs.stepfree %} checked{% endif %}>
+        <span>Prefer step-free routes<small>Use elevators instead of stairs by default.</small></span>
+      </label>
+      <label class="check-row">
+        <input type="checkbox" name="autoread" value="1"{% if prefs.autoread %} checked{% endif %}>
+        <span>Read directions aloud<small>Speak each step when you tap Next.</small></span>
+      </label>
+      <label class="check-row">
+        <input type="checkbox" name="largetext" value="1"{% if prefs.largetext %} checked{% endif %}>
+        <span>Larger text<small>Make text bigger on every page.</small></span>
+      </label>
+    </div>
+    <button class="btn btn-primary btn-block" type="submit">Save settings</button>
+  </form>
+
+  <p class="section-label">Getting around</p>
+  <div class="card">
+    <p class="muted" style="margin:0 0 8px">Every wing with two levels has an elevator. Step-free routes skip stairs and use the elevator instead.</p>
+    <p class="muted" style="margin:0">On the route screen, tap <b>Text directions</b> to see every step, or <b>Audio</b> to hear the current step.</p>
+  </div>
+{% endblock %}

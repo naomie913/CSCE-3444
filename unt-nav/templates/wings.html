@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Which wing?{% endblock %}
+{% block content %}
+  <p class="eyebrow">Explore the building</p>
+  <h1>Which wing?</h1>
+  <p class="lead">Discovery Park has nine wings. Pick the one you are heading to.</p>
+
+  <div class="wing-grid">
+    {% for c in cards %}
+      <a class="wing-btn{% if not c.levels %} off{% endif %}" href="{{ url_for('wing_types', wing=c.wing) }}">
+        <b>Wing {{ c.wing }}</b>
+        <span>{% if c.levels %}{{ c.levels }} level{{ 's' if c.levels > 1 }}{% else %}Map unavailable{% endif %}</span>
+      </a>
+    {% endfor %}
+  </div>
+  <p class="muted center">Open {{ hours }}</p>
+
+  <p class="section-label">More to explore</p>
+  <ul class="list">
+    <li><a class="row-card" href="{{ url_for('events') }}">
+      <span class="row-icon" aria-hidden="true">&#9733;</span>
+      <span class="row-main"><span class="row-title">Events at Discovery Park</span><span class="row-sub">Tours, workshops and study nights</span></span>
+      <span class="row-arrow" aria-hidden="true">&rarr;</span>
+    </a></li>
+    <li><a class="row-card" href="{{ url_for('find') }}">
+      <span class="row-icon" aria-hidden="true">&#9906;</span>
+      <span class="row-main"><span class="row-title">I know the room number</span><span class="row-sub">Go straight to search</span></span>
+      <span class="row-arrow" aria-hidden="true">&rarr;</span>
+    </a></li>
+  </ul>
+{% endblock %}

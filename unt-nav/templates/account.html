@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Account{% endblock %}
+{% block content %}
+  {% set user = current_user() %}
+  <p class="eyebrow">{{ user.role_label }}</p>
+  <h1>{{ 'Browsing as a guest' if user.role == 'guest' else 'Hi, ' ~ user.username }}</h1>
+
+  {% macro row(href, icon, title, sub) -%}
+    <li><a class="row-card" href="{{ href }}">
+      <span class="row-icon" aria-hidden="true">{{ icon }}</span>
+      <span class="row-main"><span class="row-title">{{ title }}</span><span class="row-sub">{{ sub }}</span></span>
+      <span class="row-arrow" aria-hidden="true">&rarr;</span>
+    </a></li>
+  {%- endmacro %}
+
+  {% if user.role == 'guest' %}
+    <p class="lead">Guests can search rooms, view maps, get directions and browse events. Log in to save your schedule and report map problems.</p>
+    <div class="actions">
+      <a class="btn btn-primary" href="{{ url_for('login') }}">Log in</a>
+      <a class="btn btn-outline" href="{{ url_for('register') }}">Create account</a>
+    </div>
+    <ul class="list" style="margin-top:18px">
+      {{ row(url_for('find'), '⚲', 'Find a place', 'Search a room number') }}
+      {{ row(url_for('events'), '★', 'Events', 'Events at Discovery Park') }}
+    </ul>
+  {% else %}
+    <ul class="list">
+      {% if user.role == 'admin' %}
+        {{ row(url_for('admin_dashboard'), '▦', 'Admin dashboard', 'Maps, closures, reports and accounts') }}
+      {% endif %}
+      {{ row(url_for('find'), '⚲', 'Find a place', 'Search a room number') }}
+      {{ row(url_for('saved'), '⚑', 'Saved places', 'Your schedule and favorite rooms') }}
+      {{ row(url_for('events'), '★', 'Events', 'Events at Discovery Park') }}
+      {% if user.role in ('organizer', 'admin') %}
+        {{ row(url_for('event_new'), '+', 'Create event', 'Publish an event with a venue') }}
+      {% endif %}
+      {{ row(url_for('report'), '!', 'Report a map problem', 'Wrong info, missing room, blocked path') }}
+      {{ row(url_for('accessibility'), '♿', 'Accessibility', 'Step-free routes, audio, larger text') }}
+    </ul>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('logout') }}">
+    {{ csrf_field() }}
+    <button class="btn btn-outline btn-block" type="submit">{{ 'Exit guest mode' if user.role == 'guest' else 'Log out' }}</button>
+  </form>
+{% endblock %}

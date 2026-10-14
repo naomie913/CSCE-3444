@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Wing {{ wing }}{% endblock %}
+{% block content %}
+  <p class="eyebrow">Wing {{ wing }}</p>
+  <h1>Where are you headed?</h1>
+
+  {% if types %}
+    <ul class="list">
+      {% for key, info in types %}
+        <li><a class="row-card" href="{{ url_for('room_list', wing=wing, loc_type=key) }}">
+          <span class="row-icon" aria-hidden="true">{{ info.icon }}</span>
+          <span class="row-main"><span class="row-title">{{ info.label }}</span><span class="row-sub">{{ info.sub }}</span></span>
+          <span class="row-arrow" aria-hidden="true">&rarr;</span>
+        </a></li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="error-box">The maps for Wing {{ wing }} are unavailable right now.</div>
+  {% endif %}
+
+  <div class="actions">
+    <a class="btn btn-outline" href="{{ url_for('floor_overview', wing=wing) }}">Floor map</a>
+    <a class="btn btn-outline" href="{{ url_for('find', wing=wing) }}">Search Wing {{ wing }}</a>
+  </div>
+  <div class="links"><a href="{{ url_for('wings') }}">&larr; All wings</a></div>
+{% endblock %}

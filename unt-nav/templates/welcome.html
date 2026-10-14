@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% from "_macros.html" import search_icon %}
+{% block title %}Welcome{% endblock %}
+{% block content %}
+  <span class="pill"><span class="dot"></span>Made for Discovery Park</span>
+  <h1 class="hero">Find your way, feel at home.</h1>
+  <p class="lead">From your first classroom to your next campus visit, find any space in UNT Discovery Park.</p>
+
+  <form class="searchbar" method="get" action="{{ url_for('find') }}" role="search">
+    {{ search_icon() }}
+    <input name="room" placeholder="Search room, office, or place" aria-label="Room number" autocomplete="off">
+    <button class="btn btn-primary btn-sm" name="action" value="search">Search</button>
+  </form>
+  <p class="hint">Try "B205" or browse as a guest.</p>
+
+  {% set user = current_user() %}
+  {% if user %}
+    <div class="actions">
+      <a class="btn btn-primary" href="{{ url_for('wings') }}">Explore the building &rarr;</a>
+      <a class="btn btn-outline" href="{{ url_for('account') }}">{{ 'My account' if user.role != 'guest' else 'Log in' }}</a>
+    </div>
+  {% else %}
+    <div class="actions">
+      <form method="post" action="{{ url_for('guest') }}">
+        {{ csrf_field() }}
+        <button class="btn btn-primary" type="submit">Explore as guest &rarr;</button>
+      </form>
+      <a class="btn btn-outline" href="{{ url_for('login') }}">Log in</a>
+    </div>
+    <div class="links"><a href="{{ url_for('register') }}">Create an account</a></div>
+  {% endif %}
+  <hr>
+  <p class="meta">&check; No account needed &nbsp;&nbsp; <span aria-hidden="true">&#9855;</span> Accessible options</p>
+
+  <a class="row-card card-soft" style="margin-top:28px" href="{{ url_for('find') }}">
+    <span class="row-icon" aria-hidden="true">&#9873;</span>
+    <span class="row-main">
+      <span class="row-title">Find your place</span>
+      <span class="row-sub">Search a destination and choose your starting level.</span>
+    </span>
+    <span class="row-arrow" aria-hidden="true">&rarr;</span>
+  </a>
+{% endblock %}

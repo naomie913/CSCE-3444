@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Saved places{% endblock %}
+{% block content %}
+  <p class="eyebrow">My schedule</p>
+  <h1>Saved places</h1>
+
+  <nav class="seg seg-boxed" aria-label="Saved place type" style="margin-bottom:14px">
+    <a class="seg-btn{% if kind == 'schedule' %} on{% endif %}" href="{{ url_for('saved') }}"{% if kind == 'schedule' %} aria-current="page"{% endif %}>Schedule</a>
+    <a class="seg-btn{% if kind == 'location' %} on{% endif %}" href="{{ url_for('saved', tab='locations') }}"{% if kind == 'location' %} aria-current="page"{% endif %}>Locations</a>
+  </nav>
+
+  {% if items %}
+    <ul class="list">
+      {% for item in items %}
+        <li class="row-card">
+          <span class="row-icon" aria-hidden="true">&#9873;</span>
+          <a class="row-main" style="text-decoration:none" href="{{ url_for('find', room=item.room, action='search') }}">
+            <span class="row-title">{{ item.title }}{% if kind == 'schedule' %} · {{ item.days }} {{ item.start_time|fmt_time }}{% endif %}</span>
+            <span class="row-sub">{{ room_place(item.room) }}</span>
+          </a>
+          <span class="row-actions">
+            <form method="post" action="{{ url_for('saved_delete', item_id=item.id) }}" data-confirm="Remove {{ item.title }}?">
+              {{ csrf_field() }}<button class="btn btn-outline btn-xs" type="submit" aria-label="Remove {{ item.title }}">Remove</button>
+            </form>
+            <a class="row-arrow" href="{{ url_for('find', room=item.room, action='search') }}" aria-label="Directions to {{ item.room }}">&rarr;</a>
+          </span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <div class="card"><p class="muted" style="margin:0">
+      {% if kind == 'schedule' %}Add your classes to get directions to each one in a tap.{% else %}Save rooms you visit often, like advising or the library.{% endif %}
+    </p></div>
+  {% endif %}
+
+  <a class="btn btn-outline btn-block" href="{{ url_for('saved_new', kind=kind) }}">+ Add to {{ 'schedule' if kind == 'schedule' else 'locations' }}</a>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+  <p class="eyebrow">Error</p>
+  <h1>{{ title }}</h1>
+  <p class="lead">{{ message }}</p>
+  <div class="actions">
+    <a class="btn btn-primary" href="{{ url_for('welcome') }}">Go home</a>
+    <a class="btn btn-outline" href="{{ url_for('find') }}">Find a place</a>
+  </div>
+{% endblock %}

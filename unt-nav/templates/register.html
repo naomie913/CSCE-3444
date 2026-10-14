@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% from "_macros.html" import field, select %}
+{% block title %}Create account{% endblock %}
+{% block content %}
+  <p class="eyebrow">Account</p>
+  <h1>Create account</h1>
+
+  <form class="card" method="post" action="{{ url_for('register') }}" novalidate>
+    {{ csrf_field() }}
+    {{ field('username', 'Username', form.username, errors, placeholder='Choose a username', attrs='autocomplete="username" required autofocus') }}
+    {{ field('password', 'Password', '', errors, type='password', placeholder='At least 8 characters', attrs='autocomplete="new-password" minlength="8" required') }}
+    {{ field('confirm', 'Confirm password', '', errors, type='password', placeholder='Re-enter password', attrs='autocomplete="new-password" required') }}
+    {{ select('role', 'Role', roles.items(), form.role, errors) }}
+    <p class="hint">Roles: Student / Faculty, Event Organizer, Admin</p>
+    <button class="btn btn-primary btn-block" type="submit">Create account</button>
+  </form>
+
+  <div class="links">
+    <a href="{{ url_for('login') }}">Already have an account? Log in</a>
+  </div>
+{% endblock %}

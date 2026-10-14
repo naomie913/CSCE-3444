@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from "_macros.html" import search_icon %}
+{% block title %}Events{% endblock %}
+{% block content %}
+  <p class="eyebrow">Explore</p>
+  <h1>Events at Discovery Park</h1>
+
+  <form class="searchbar" method="get" action="{{ url_for('events') }}" role="search" style="margin-bottom:14px">
+    {{ search_icon() }}
+    <input type="search" name="q" value="{{ q }}" placeholder="Search events" aria-label="Search events">
+    <button class="btn btn-primary btn-sm">Search</button>
+  </form>
+
+  {% if events %}
+    <div class="list">
+      {% for ev in events %}
+        <article class="card event-card">
+          <h2><a href="{{ url_for('event_detail', event_id=ev.id) }}" style="text-decoration:none">{{ ev.name }}</a></h2>
+          <p>{{ ev.event_date|fmt_date }} · {{ ev.event_time|fmt_time }}</p>
+          <p>{{ room_place(ev.room) }}</p>
+          <div class="event-links">
+            <a href="{{ url_for('find', room=ev.room, action='search') }}">Get directions &rarr;</a>
+            {% if can_manage_event(ev) %}
+              <a href="{{ url_for('event_edit', event_id=ev.id) }}">Edit</a>
+              <form class="inline-form" method="post" action="{{ url_for('event_cancel', event_id=ev.id) }}" data-confirm="Cancel {{ ev.name }}? Attendees will no longer see it.">
+                {{ csrf_field() }}<button class="link-btn" type="submit">Cancel event</button>
+              </form>
+            {% endif %}
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="card"><p class="muted" style="margin:0">{% if q %}No upcoming events match "{{ q }}".{% else %}No upcoming events yet.{% endif %}</p></div>
+  {% endif %}
+
+  {% set user = current_user() %}
+  {% if user and user.role in ('organizer', 'admin') %}
+    <a class="btn btn-primary btn-block" href="{{ url_for('event_new') }}">+ Create event</a>
+  {% endif %}
+{% endblock %}

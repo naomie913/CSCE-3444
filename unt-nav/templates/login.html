@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Log in{% endblock %}
+{% block content %}
+  <p class="eyebrow">Account</p>
+  <h1>Log in</h1>
+  <p class="lead">Save your schedule and favorite places.</p>
+
+  <form class="card" method="post" action="{{ url_for('login') }}" novalidate>
+    {{ csrf_field() }}
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+    <div class="field">
+      <label for="username">Username</label>
+      <input id="username" name="username" type="text" placeholder="Enter username"
+             value="{{ username }}" autocomplete="username" required autofocus>
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" placeholder="Enter password"
+             autocomplete="current-password" required>
+    </div>
+    <button class="btn btn-primary btn-block" type="submit">Log in</button>
+  </form>
+
+  <div class="links">
+    <a href="{{ url_for('register') }}">Create a new account</a>
+    <form method="post" action="{{ url_for('guest') }}">
+      {{ csrf_field() }}
+      <button class="link-btn" type="submit">Continue as guest</button>
+    </form>
+  </div>
+{% endblock %}
+{% block footer %}<footer class="foot-note">Passwords are never displayed</footer>{% endblock %}

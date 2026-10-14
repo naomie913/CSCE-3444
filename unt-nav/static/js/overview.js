@@ -1,4 +1,4 @@
-/* Floor overview (Fig 24): switch levels, tap a room for details. */
+
 (function () {
   "use strict";
   var app = document.getElementById("overview-app");

@@ -124,31 +124,47 @@ def get_prefs():
 # ---------- map helpers ----------
 
 def active_levels(wing):
+    if wing == mapdata.COMMON:
+        return sorted(mapdata.FLOORS)
     rows = get_db().execute("SELECT level FROM maps WHERE wing = ? AND active = 1", (wing,)).fetchall()
     have = {r["level"] for r in rows}
     return [lv for lv in mapdata.levels(wing) if lv in have]
 
 
-def closure_keys(wing):
-    levels = set(active_levels(wing))
-    rows = get_db().execute(
-        "SELECT level, target_type, target_id FROM closures WHERE wing = ?", (wing,)
-    ).fetchall()
-    return sorted(f"{r['level']}:{r['target_type']}:{r['target_id']}" for r in rows if r["level"] in levels)
+def inactive_maps():
+    rows = get_db().execute("SELECT wing, level FROM maps WHERE active = 0").fetchall()
+    return {(r["wing"], r["level"]) for r in rows}
+
+
+def closure_keys():
+    rows = get_db().execute("SELECT level, target_type, target_id FROM closures").fetchall()
+    return sorted(f"{r['level']}:{r['target_type']}:{r['target_id']}" for r in rows)
 
 
 def lookup_room(raw, wing=None):
-    """Returns (match, error). match = {"room", "wing", "level"}."""
-    room_id = mapdata.normalize_room(raw)
-    if not room_id:
-        return None, "Enter a room number."
-    match = mapdata.find_room(room_id)
+    """Find a room by number or place name.
+
+    Returns (match, error, suggestions). match = {"room", "wing", "level"};
+    suggestions lists rooms when a name matches more than one place.
+    """
+    raw = (raw or "").strip()
+    if not raw:
+        return None, "Enter a room number or place name.", []
+    match = mapdata.find_room(raw)
+    if match is None:
+        named = [m for m in mapdata.search_places(raw) if not wing or m["wing"] == wing]
+        if len(named) == 1:
+            match = named[0]
+        elif named:
+            return None, f"More than one place matches “{raw}”. Pick one:", named
     if match is None or (wing and match["wing"] != wing):
         where = f"Wing {wing}" if wing else "Discovery Park"
-        return None, f"Room {room_id} was not found in {where}. Check the room number and try again."
+        return None, (f"“{raw}” was not found in {where}. "
+                      "Check the room number or try a place name, like “library”."), []
     if match["level"] not in active_levels(match["wing"]):
-        return None, f"The map for Wing {match['wing']}, Level {match['level']} is unavailable right now."
-    return match, None
+        return None, (f"The map for {mapdata.wing_label(match['wing'])}, Level {match['level']} "
+                      "is unavailable right now."), []
+    return match, None, []
 
 
 def room_place(room_id):
@@ -156,8 +172,8 @@ def room_place(room_id):
     if match is None:
         return room_id
     room = match["room"]
-    place = f"Wing {match['wing']}, Room {room['id']} · Level {match['level']}"
-    return f"{room['name']} · {place}" if room["name"] else place
+    where = f"{mapdata.wing_label(match['wing'])}, Level {match['level']}"
+    return f"{mapdata.room_title(room)} · {where}"
 
 
 def valid_wing(wing):
@@ -178,6 +194,8 @@ def inject_globals():
         "LOCATION_TYPES": mapdata.LOCATION_TYPES,
         "csrf_field": csrf_field,
         "room_place": room_place,
+        "room_title": mapdata.room_title,
+        "wing_label": mapdata.wing_label,
     }
 
 
@@ -311,52 +329,45 @@ def find():
     action = request.args.get("action")
     wing = request.args.get("wing", "").upper()
     wing = wing if wing in mapdata.WINGS else None
-    q = mapdata.normalize_room(request.args.get("room", ""))
+    q = request.args.get("room", "").strip()
     stepfree = request.args.get("stepfree") == "1" if action else get_prefs()["stepfree"]
 
-    match, error = (None, None)
+    match, error, suggestions = None, None, []
     if q:
-        match, error = lookup_room(q, wing)
+        match, error, suggestions = lookup_room(q, wing)
     elif action == "go":
-        error = "Enter a room number first."
+        error = "Enter a room number or place name first."
 
     start_text = request.args.get("from", "").strip()
     start, start_error = check_start(start_text, match)
 
-    level_wing = match["wing"] if match else (start["wing"] if start else wing)
-    levels = active_levels(level_wing) if level_wing else [1, 2]
+    levels = sorted(mapdata.FLOORS)  # you can start on any floor, whatever wing you're headed to
     level = start["level"] if start else request.args.get("level", type=int)
     if level not in levels:
-        level = levels[0] if levels else None
-    if match and not levels:
-        match, error = None, f"Maps for Wing {level_wing} are unavailable right now."
+        level = levels[0]
 
     if action == "go" and match and not start_error:
         return redirect(url_for("route", room=match["room"]["id"], level=level, stepfree=int(stepfree),
                                 **({"from": start_text} if start else {})))
-    default_label = (mapdata.default_start(level_wing, level)["label"].lower()
-                     if level_wing and level else "entrance or stairs")
-    options_wings = [level_wing] if level_wing else mapdata.WINGS
-    return render_template("find.html", tab="find", q=q, match=match, error=error, wing=wing,
+    return render_template("find.html", tab="find", q=match["room"]["id"] if match else q, match=match,
+                           error=error, suggestions=suggestions, wing=wing,
                            levels=levels, level=level, stepfree=stepfree,
                            start_text=start_text, start=start, start_error=start_error,
-                           default_label=default_label,
-                           start_options=mapdata.start_options(options_wings))
+                           default_label=mapdata.default_start_label(level),
+                           start_options=mapdata.start_options())
 
 
 def check_start(text, match):
-    """Validate the optional starting room/landmark. Returns (start, error)."""
+    """Validate the optional starting room, place or landmark. Returns (start, error)."""
     if not text:
         return None, None
     start = mapdata.resolve_start(text)
     if start is None:
         return None, (f"We couldn't find “{text}”. Enter a room number like B192, "
-                      "or pick a landmark from the list.")
-    if match and start["wing"] != match["wing"]:
-        return None, (f"Pick a starting point in Wing {match['wing']}. "
-                      "Routes between wings aren't available yet.")
-    if start["level"] not in active_levels(start["wing"]):
-        return None, f"The map for Wing {start['wing']}, Level {start['level']} is unavailable right now."
+                      "a place name, or pick a landmark from the list.")
+    if start["wing"] and start["level"] not in active_levels(start["wing"]):
+        return None, (f"The map for {mapdata.wing_label(start['wing'])}, Level {start['level']} "
+                      "is unavailable right now.")
     if match and start["node"] == f"room:{match['room']['id']}":
         return None, "That's your destination. Enter where you are now."
     return start, None
@@ -364,7 +375,7 @@ def check_start(text, match):
 
 @app.route("/route")
 def route():
-    match, error = lookup_room(request.args.get("room", ""))
+    match, error, _ = lookup_room(request.args.get("room", ""))
     level = request.args.get("level", type=int)
     start_text = request.args.get("from", "").strip()
     start = None
@@ -372,7 +383,7 @@ def route():
         start, error = check_start(start_text, match)
         if start:
             level = start["level"]
-        elif level not in active_levels(match["wing"]):
+        elif level not in mapdata.FLOORS:
             error = error or "Choose the level you are on."
     if error:
         flash(error, "error")
@@ -380,9 +391,8 @@ def route():
     return render_template("route.html", tab="find", match=match, level=level,
                            stepfree=request.args.get("stepfree") == "1",
                            start=start, start_text=start_text,
-                           default_start_label=mapdata.default_start(match["wing"], level)["label"].lower(),
-                           wing_info=mapdata.WING_DATA[match["wing"]],
-                           levels=active_levels(match["wing"]))
+                           default_start_label=mapdata.default_start_label(level),
+                           source=mapdata.SOURCE)
 
 
 @app.route("/wings")
@@ -413,8 +423,8 @@ def room_list(wing, loc_type):
 @app.route("/map/<wing>")
 def floor_overview(wing):
     wing = valid_wing(wing)
-    return render_template("overview.html", tab="explore", wing=wing,
-                           wing_info=mapdata.WING_DATA[wing], levels=active_levels(wing),
+    return render_template("overview.html", tab="explore", wing=wing, source=mapdata.SOURCE,
+                           levels=active_levels(wing),
                            room=mapdata.normalize_room(request.args.get("room", "")),
                            level=request.args.get("level", type=int))
 
@@ -457,14 +467,14 @@ def read_event_form():
         errors["event_time"] = "Enter a valid time."
     if len(form["description"]) > 1000:
         errors["description"] = "Keep the description under 1000 characters."
-    if form["wing"] not in mapdata.WINGS:
-        errors["wing"] = "Choose a wing."
-    elif not form["room"]:
+    if not form["room"]:
         errors["room"] = "Enter the room for the venue."
     else:
         match = mapdata.find_room(form["room"])
-        if match is None or match["wing"] != form["wing"]:
-            errors["room"] = f"Room {form['room']} isn't in Wing {form['wing']}."
+        if match is None:
+            errors["room"] = f"Room {form['room']} isn't on the Discovery Park map."
+        else:
+            form["wing"] = match["wing"]  # the room number decides the wing
     return form, errors
 
 
@@ -742,10 +752,11 @@ def admin_closures():
     if request.method == "POST":
         parts = request.form.get("target", "").split("|")
         note = request.form.get("note", "").strip()
-        name = None
-        if len(parts) == 4 and parts[1].isdigit():
-            name = mapdata.closure_name(parts[0], int(parts[1]), parts[2], parts[3])
-        if name is None:
+        target = None
+        if len(parts) == 3 and parts[0].isdigit():
+            level, ttype, tid = int(parts[0]), parts[1], parts[2]
+            target = mapdata.closure_target(level, ttype, tid)
+        if target is None:
             errors["target"] = "Choose what is closed."
         if len(note) > 200:
             errors["note"] = "Keep the note under 200 characters."
@@ -753,14 +764,24 @@ def admin_closures():
             db.execute(
                 "INSERT OR IGNORE INTO closures (wing, level, target_type, target_id, note, created_by)"
                 " VALUES (?, ?, ?, ?, ?, ?)",
-                (parts[0], int(parts[1]), parts[2], parts[3], note, current_user()["id"]))
+                (target["wing"], level, ttype, tid, note, current_user()["id"]))
             db.commit()
-            flash(f"Marked closed: Wing {parts[0]}, Level {parts[1]} · {name}. Routes now avoid it.", "success")
+            flash(f"Marked closed: Level {level} · {target['name']}. Routes now avoid it.", "success")
             return redirect(url_for("admin_closures"))
-    rows = db.execute("SELECT * FROM closures ORDER BY wing, level, created_at").fetchall()
-    closures = [dict(r, name=mapdata.closure_name(r["wing"], r["level"], r["target_type"], r["target_id"]) or r["target_id"])
-                for r in rows]
-    groups = [(w, lv, mapdata.closure_targets(w, lv)) for w in mapdata.WINGS for lv in mapdata.levels(w)]
+    rows = db.execute("SELECT * FROM closures ORDER BY level, wing, created_at").fetchall()
+    closures = []
+    for r in rows:
+        target = mapdata.closure_target(r["level"], r["target_type"], r["target_id"])
+        closures.append(dict(r, name=target["name"] if target else r["target_id"]))
+    # Level -> wing -> targets, for the grouped dropdown
+    groups = []
+    for level in sorted(mapdata.FLOORS):
+        by_wing = {}
+        for ttype, tid, name, wing in mapdata.closure_targets(level):
+            by_wing.setdefault(wing, []).append((ttype, tid, name))
+        for wing in sorted(by_wing, key=lambda w: (w != mapdata.COMMON, w)):
+            label = "Shared hallways, stairs & elevators" if wing == mapdata.COMMON else f"Wing {wing}"
+            groups.append((level, label, sorted(by_wing[wing], key=lambda t: t[2])))
     return render_template("admin/closures.html", admin_area=True, tab="dashboard",
                            closures=closures, groups=groups, errors=errors), (400 if errors else 200)
 
@@ -859,23 +880,23 @@ def admin_user_update(user_id):
 
 # ---------- JSON API (used by the map pages) ----------
 
-@app.route("/api/wings/<wing>")
-def api_wing(wing):
-    wing = wing.upper()
-    if wing not in mapdata.WINGS:
-        return jsonify(error="Unknown wing"), 404
-    data = mapdata.WING_DATA[wing]
-    return jsonify(wing=wing, name=data["name"], source=data["source"], hours=mapdata.HOURS,
-                   floors={str(lv): data["floors"][lv] for lv in active_levels(wing)},
-                   closures=closure_keys(wing))
+def inactive_list():
+    return sorted(f"{w}{lv}" for w, lv in inactive_maps())
 
 
-@app.route("/api/wings/<wing>/closures")
-def api_closures(wing):
-    wing = wing.upper()
-    if wing not in mapdata.WINGS:
-        return jsonify(error="Unknown wing"), 404
-    return jsonify(closures=closure_keys(wing), levels=active_levels(wing))
+@app.route("/api/map")
+def api_map():
+    """The whole building: both floors, minus rooms on removed maps, plus closures."""
+    inactive = inactive_maps()
+    return jsonify(source=mapdata.SOURCE, hours=mapdata.HOURS,
+                   floors={str(lv): mapdata.floor_for_api(lv, inactive) for lv in sorted(mapdata.FLOORS)},
+                   closures=closure_keys(), inactive=inactive_list())
+
+
+@app.route("/api/map/status")
+def api_map_status():
+    """Polled while navigating, so routes update when an admin changes something."""
+    return jsonify(closures=closure_keys(), inactive=inactive_list())
 
 
 # ---------- errors ----------
@@ -898,4 +919,4 @@ def handle_error(err):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port=int(os.environ.get("PORT", 5000)))

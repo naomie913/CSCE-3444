@@ -109,11 +109,18 @@ def close_db(_exc=None):
 
 
 def ensure_schema():
-    """Create any missing tables and register every floor map as active."""
+    """Create any missing tables, register every wing's floor map, and drop map
+    rows and closures that no longer exist in the map data."""
     con = connect()
     con.executescript(SCHEMA)
-    for wing in mapdata.WINGS:
-        for level in mapdata.levels(wing):
-            con.execute("INSERT OR IGNORE INTO maps (wing, level) VALUES (?, ?)", (wing, level))
+    current = set(mapdata.wing_levels())
+    for wing, level in current:
+        con.execute("INSERT OR IGNORE INTO maps (wing, level) VALUES (?, ?)", (wing, level))
+    for row in con.execute("SELECT wing, level FROM maps").fetchall():
+        if (row["wing"], row["level"]) not in current:
+            con.execute("DELETE FROM maps WHERE wing = ? AND level = ?", (row["wing"], row["level"]))
+    for row in con.execute("SELECT id, level, target_type, target_id FROM closures").fetchall():
+        if mapdata.closure_target(row["level"], row["target_type"], row["target_id"]) is None:
+            con.execute("DELETE FROM closures WHERE id = ?", (row["id"],))
     con.commit()
     con.close()

@@ -2,13 +2,14 @@
 {% block title %}Route to {{ match.room.id }}{% endblock %}
 {% block content %}
   {% set room = match.room.id %}
+  {% set numbered = room_title(match.room) != match.room.name %}
   {% set find_url = url_for('find', room=room, level=level, stepfree=1 if stepfree else 0, action='search', **({'from': start_text} if start else {})) %}
   <div id="route-app"
-       data-wing="{{ match.wing }}" data-room="{{ room }}" data-level="{{ level }}"
+       data-room="{{ room }}" data-level="{{ level }}"
        data-start="{{ start.node if start else '' }}"
        data-stepfree="{{ 1 if stepfree else 0 }}" data-autoread="{{ 1 if prefs.autoread else 0 }}"
-       data-api="{{ url_for('api_wing', wing=match.wing) }}"
-       data-closures-api="{{ url_for('api_closures', wing=match.wing) }}">
+       data-api="{{ url_for('api_map') }}"
+       data-status-api="{{ url_for('api_map_status') }}">
 
     <section id="route-loading">
       <p class="eyebrow">Discovery Park · Wayfinding</p>
@@ -20,7 +21,7 @@
             <div class="progress-bar" id="route-bar"></div>
           </div>
           <p class="muted" id="route-pct">0% completed</p>
-          <p class="muted">Loading Wing {{ match.wing }}, Level{{ 's' if levels|length > 1 }} {{ levels|join(' and ') }}. This might take a moment.</p>
+          <p class="muted">Loading the Discovery Park map, Levels 1 and 2. This might take a moment.</p>
         </div>
       </div>
       <a class="btn btn-outline btn-block" href="{{ find_url }}">Cancel</a>
@@ -38,11 +39,11 @@
     </section>
 
     <section id="route-view" hidden>
-      <p class="eyebrow">Route preview</p>
-      <h1>To {{ room }}</h1>
+      <p class="eyebrow">Route preview · {{ wing_label(match.wing) }}</p>
+      <h1>To {{ room if numbered else match.room.name }}</h1>
       <p class="lead" style="margin-top:-6px">
-        {% if match.room.name %}{{ match.room.name }}<br>{% endif %}
-        <span class="small">From {{ start.label if start else 'the ' ~ default_start_label }} · <a href="{{ find_url }}">Change</a></span>
+        {% if numbered and match.room.name %}{{ match.room.name }}<br>{% endif %}
+        <span class="small">From <span id="route-from">{{ start.label if start else 'the ' ~ default_start_label }}</span> · <a href="{{ find_url }}">Change</a></span>
       </p>
       <div id="route-notice" class="flash flash-success" role="status" hidden></div>
       <div class="chips">
@@ -53,13 +54,21 @@
       <div class="card map-card">
         <div class="map-head">
           <div>
-            <h2 class="map-title">Wing {{ match.wing }}</h2>
-            <p class="muted small" style="margin:2px 0 0">{{ wing_info.source }}</p>
+            <h2 class="map-title">Discovery Park</h2>
+            <p class="muted small" style="margin:2px 0 0">{{ source }}</p>
           </div>
           <span class="badge" id="route-level-badge"></span>
         </div>
         <div class="seg" id="route-level-btns"></div>
-        <svg id="route-map" class="floor-map" role="img"></svg>
+        <div class="map-frame">
+          <svg id="route-map" class="floor-map" role="img"></svg>
+          <div class="zoom-controls" id="route-zoom">
+            <button type="button" data-zoom="in" aria-label="Zoom in">+</button>
+            <button type="button" data-zoom="out" aria-label="Zoom out">&minus;</button>
+            <button type="button" data-zoom="fit" aria-label="Show the whole route">&#9635;</button>
+          </div>
+        </div>
+        <p class="muted small" style="margin:8px 0 0">Drag to move the map; pinch or use + and &minus; to zoom.</p>
       </div>
 
       <div class="next-card" aria-live="polite">
@@ -80,7 +89,7 @@
         <a href="{{ url_for('report', wing=match.wing, level=match.level, room=room) }}">Report a map problem</a>
         <a href="{{ url_for('find') }}">Start over</a>
       </div>
-      <p class="muted small center">Your starting point is only used for this route and is never saved.</p>
+      <p class="muted small center">Distances are estimates until hallways are measured. Your starting point is only used for this route and is never saved.</p>
     </section>
   </div>
 {% endblock %}

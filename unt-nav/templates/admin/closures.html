@@ -12,10 +12,10 @@
         <label for="target">What is closed?</label>
         <select id="target" name="target">
           <option value="">Choose…</option>
-          {% for wing, level, targets in groups %}
-            <optgroup label="Wing {{ wing }} · Level {{ level }}">
+          {% for level, label, targets in groups %}
+            <optgroup label="Level {{ level }} · {{ label }}">
               {% for ttype, tid, name in targets %}
-                <option value="{{ wing }}|{{ level }}|{{ ttype }}|{{ tid }}">{{ name }}</option>
+                <option value="{{ level }}|{{ ttype }}|{{ tid }}">{{ name }}</option>
               {% endfor %}
             </optgroup>
           {% endfor %}
@@ -39,7 +39,7 @@
           <span class="row-icon" aria-hidden="true" style="color:var(--error);background:var(--error-bg)">&#10005;</span>
           <span class="row-main">
             <span class="row-title">{{ c.name }}</span>
-            <span class="row-sub">Wing {{ c.wing }}, Level {{ c.level }}{% if c.note %} · {{ c.note }}{% endif %} · {{ c.created_at|ago }}</span>
+            <span class="row-sub">{{ wing_label(c.wing) }}, Level {{ c.level }}{% if c.note %} · {{ c.note }}{% endif %} · {{ c.created_at|ago }}</span>
           </span>
           <form method="post" action="{{ url_for('admin_closure_delete', closure_id=c.id) }}">
             {{ csrf_field() }}<button class="btn btn-outline btn-sm" type="submit">Reopen</button>

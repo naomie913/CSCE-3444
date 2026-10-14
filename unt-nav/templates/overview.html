@@ -5,9 +5,10 @@
   <h1>Floor overview</h1>
 
   <div id="overview-app" data-wing="{{ wing }}" data-room="{{ room }}" data-level="{{ level or '' }}"
-       data-api="{{ url_for('api_wing', wing=wing) }}" data-find-url="{{ url_for('find') }}">
+       data-levels="{{ levels|join(',') }}"
+       data-api="{{ url_for('api_map') }}" data-find-url="{{ url_for('find') }}">
     <p id="overview-loading" class="muted">Loading map…</p>
-    <div id="overview-error" class="error-box" hidden>The map for Wing {{ wing }} couldn't load. Reload the page to try again.</div>
+    <div id="overview-error" class="error-box" hidden>The map for Wing {{ wing }} couldn't load or is unavailable. Reload the page to try again.</div>
 
     <div id="overview-body" hidden>
       <div class="seg" id="overview-levels" style="margin-bottom:14px"></div>
@@ -15,14 +16,21 @@
         <div class="map-head">
           <div>
             <h2 class="map-title">Wing {{ wing }}</h2>
-            <p class="muted small" style="margin:2px 0 0">{{ wing_info.source }}</p>
+            <p class="muted small" style="margin:2px 0 0">{{ source }}</p>
           </div>
           <span class="badge" id="overview-badge"></span>
         </div>
-        <svg id="overview-map" class="floor-map" role="img"></svg>
+        <div class="map-frame">
+          <svg id="overview-map" class="floor-map" role="img"></svg>
+          <div class="zoom-controls" id="overview-zoom">
+            <button type="button" data-zoom="in" aria-label="Zoom in">+</button>
+            <button type="button" data-zoom="out" aria-label="Zoom out">&minus;</button>
+            <button type="button" data-zoom="fit" aria-label="Show all of Wing {{ wing }}">&#9635;</button>
+          </div>
+        </div>
       </div>
 
-      <p id="overview-hint" class="hint center">Tap a room to go there, or to start your route from it. Closures are marked in red.</p>
+      <p id="overview-hint" class="hint center">Tap a room to go there, or to start your route from it. Drag to move around the building. Closures are marked in red.</p>
       <div id="overview-room" class="card" style="margin-top:14px" hidden>
         <h2 id="overview-room-title"></h2>
         <p id="overview-room-sub" class="muted" style="margin:0"></p>

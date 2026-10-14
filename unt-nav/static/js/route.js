@@ -1,5 +1,4 @@
-/* Route page: map loading (Fig 22) -> route navigation (Fig 23).
- * Polls for closures and recalculates the route when they change (Observer). */
+
 (function () {
   "use strict";
   var app = document.getElementById("route-app");

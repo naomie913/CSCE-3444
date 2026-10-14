@@ -1,18 +1,12 @@
-/* UNT Navigation - floor map drawing and in-browser routing.
- *
- * buildGraph()      turns a wing's hallway/room/feature data into a walking graph
- * shortestPath()    Dijkstra over that graph (skips closures; step-free skips stairs)
- * buildDirections() turns a path into tap-through text steps
- * renderFloor()     draws one level as SVG, with an optional route overlay
- */
+
 (function () {
   "use strict";
 
   var SVGNS = "http://www.w3.org/2000/svg";
-  var UNIT_M = 0.4;        // metres per map unit
-  var WALK_MPS = 1.2;      // walking speed, metres per second
-  var STAIRS_S = 20;       // seconds to climb one level
-  var ELEVATOR_S = 45;     // seconds including the wait
+  var UNIT_M = 0.4;        
+  var WALK_MPS = 1.2;      
+  var STAIRS_S = 20;       
+  var ELEVATOR_S = 45;     
 
   function pt(p) { return Array.isArray(p) ? p : [p.x, p.y]; }
   function dist(a, b) { a = pt(a); b = pt(b); return Math.hypot(a[0] - b[0], a[1] - b[1]); }
@@ -216,7 +210,7 @@
         return;
       }
       if (e.door) {
-        if (!b.room) return; // stepping out of a doorway
+        if (!b.room) return; 
         flush();
         var r = b.room, name = r.id + (r.name ? " (" + r.name + ")" : ""), text;
         if (!heading || leavingRoom) {

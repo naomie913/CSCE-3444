@@ -28,6 +28,7 @@ CORRIDORS = {
         # Wing E
         ("e-w", "E", "Wing E west hallway", "Wing E west hallway", (139, 349), (139, 508)),
         ("e-e", "E", "Wing E east hallway", "Wing E east hallway", (256, 349), (256, 508)),
+        ("e-365", "E", "Wing E north hallway", "Wing E north hallway by E132-E148", (139, 365.5), (256, 365.5)),
         ("e-402", "E", "Wing E hallway", "Wing E hallway by E135-E139", (139, 402), (256, 402)),
         ("e-423", "E", "Wing E hallway", "Wing E hallway by E157-E160", (139, 423), (256, 423)),
         ("e-455", "E", "Wing E hallway", "Wing E hallway by E166/E180A", (139, 455), (256, 455)),
@@ -35,11 +36,14 @@ CORRIDORS = {
         ("e-157", "E", "Wing E hallway", "Wing E hallway by E161-E167", (157, 423), (157, 455)),
         ("e-200", "E", "Wing E hallway", "Wing E hallway by E154", (200, 423), (200, 455)),
         ("e-205", "E", "Wing E hallway", "Wing E hallway by E178", (205, 455), (205, 508)),
-        # Wing G (diagonal hallway)
-        ("g-1", "G", "Wing G hallway", "Wing G hallway (south end)", (256, 349), (258, 333)),
-        ("g-2", "G", "Wing G hallway", "Wing G hallway by G150", (258, 333), (250, 318)),
-        ("g-3", "G", "Wing G hallway", "Wing G hallway by G157-G173", (250, 318), (232, 280)),
-        ("g-4", "G", "Wing G hallway", "Wing G hallway (north end)", (232, 280), (230, 266)),
+        # Wing G: a loop of two diagonal strips joined at the top (exact, from the PDF's shapes)
+        ("g-in", "G", "Wing G hallway", "Wing G entry from C136 (through the G150 lobby)", (255.5, 349), (255.5, 334)),
+        ("g-left", "G", "Wing G hallway", "Wing G west diagonal (G152-G163)", (255.5, 334), (227.6, 291)),
+        ("g-west", "G", "Wing G hallway", "Wing G hallway by G165 (assumed; not shaded on map)", (227.6, 291), (227.7, 266)),
+        ("g-top", "G", "Wing G hallway", "Wing G north hallway by G195 (assumed; not shaded on map)", (227.7, 266), (249.3, 264.6)),
+        ("g-east", "G", "Wing G hallway", "Wing G hallway by G181-G191 (assumed; not shaded on map)", (249.3, 264.6), (249.8, 297.7)),
+        ("g-right", "G", "Wing G hallway", "Wing G east diagonal (G170-G178)", (249.8, 297.7), (264.8, 323.5)),
+        ("g-join", "G", "Wing G hallway", "Wing G south junction", (264.8, 323.5), (255.5, 334)),
         # Wing H
         ("h", "H", "Wing H hallway", "Wing H hallway", (317, 135), (317, 349)),
         ("h-stub", "H", "Wing H hallway", "Wing H side hallway", (290, 215), (317, 215)),
@@ -47,9 +51,10 @@ CORRIDORS = {
         ("d-296", "D", "Wing D hallway", "Wing D hallway by D133-D144", (317, 296), (412, 296)),
         ("d-356", "D", "Wing D north hallway", "Wing D north hallway (D160, to Wing J)", (356, 228), (356, 296)),
         ("d-412", "D", "Wing D east hallway", "Wing D east hallway", (412, 296), (412, 347)),
-        # The map shows no hallway inside Wing J; this assumes it's entered from the
-        # top of the D160 hallway. Check on site.
-        ("j", "J", "Wing J hallway", "Wing J connection from D160 (assumed)", (356, 230), (378, 230)),
+        # The map shows no hallway inside Wing J. This assumes it's entered from the top of
+        # the D160 hallway through the small rooms beside J101. Check on site.
+        ("j", "J", "Wing J hallway", "Wing J entry from D160 (assumed)", (353.2, 231), (379, 231)),
+        ("j-up", "J", "Wing J hallway", "Wing J hallway by J101/J105 (assumed)", (379, 231), (379, 198)),
         # Wing B
         ("b-w", "B", "Wing B west hallway", "Wing B west hallway", (323, 347), (323, 485)),
         ("b-e", "B", "Wing B east hallway", "Wing B east hallway", (405, 346), (405, 485)),
@@ -57,6 +62,7 @@ CORRIDORS = {
         ("b-433", "B", "Wing B hallway", "Wing B hallway by B158/B185", (323, 433), (405, 433)),
         # Wing A
         ("a", "A", "Wing A hallway", "Wing A hallway", (338, 485), (338, 580)),
+        ("a-s", "A", "Wing A hallway", "Wing A south hallway to the entrance", (338.8, 576), (325.5, 576)),
         ("a-516", "A", "Wing A inner hallway", "Wing A inner hallway by A160", (294, 516), (338, 516)),
         ("a-306", "A", "Wing A inner hallway", "Wing A inner hallway by A145/A149", (306, 516), (306, 541)),
         # Wing F
@@ -80,7 +86,6 @@ CORRIDORS = {
         ("e2-w", "E", "Wing E west hallway", "Wing E west hallway", (111, 220), (111, 405)),
         ("e2-e", "E", "Wing E east hallway", "Wing E east hallway", (249, 220), (249, 405)),
         ("e2-405", "E", "Wing E south hallway", "Wing E south hallway", (111, 405), (249, 405)),
-        ("e2-266", "E", "Wing E hallway", "Wing E hallway by E201", (111, 266), (200, 266)),
         ("e2-200", "E", "Wing E hallway", "Wing E hallway by E290", (200, 220), (200, 306)),
         ("e2-251", "E", "Wing E hallway", "Wing E hallway by E292", (200, 251), (249, 251)),
         ("e2-265", "E", "Wing E hallway", "Wing E hallway by E295", (200, 265), (249, 265)),
@@ -93,7 +98,9 @@ CORRIDORS = {
         ("e2-370", "E", "Wing E hallway", "Wing E hallway E255/E260", (111, 370), (249, 370)),
         # Wing D
         ("d2-163", "D", "Wing D hallway", "Wing D hallway by D206-D210", (330, 163), (437, 163)),
-        ("d2-362", "D", "Wing D north hallway", "Wing D north hallway by D265", (362, 83), (362, 163)),
+        ("d2-355", "D", "Wing D north hallway", "Wing D narrow hallway beside D206A", (355.2, 165.8), (355.2, 123)),
+        ("d2-123", "D", "Wing D north hallway", "Wing D north hallway corner", (355.2, 123), (362.5, 123)),
+        ("d2-362", "D", "Wing D north hallway", "Wing D north hallway by D265", (362.5, 123), (362.5, 85)),
         ("d2-352", "D", "Wing D west hallway", "Wing D west hallway by D202", (352, 163), (352, 220)),
         ("d2-432", "D", "Wing D east hallway", "Wing D east hallway", (432, 163), (432, 220)),
         # Wing B
@@ -101,24 +108,34 @@ CORRIDORS = {
         ("b2-e", "B", "Wing B east hallway", "Wing B east hallway", (417, 220), (417, 383)),
         ("b2-274", "B", "Wing B hallway", "Wing B hallway by B230-B260", (327, 274), (417, 274)),
         ("b2-325", "B", "Wing B hallway", "Wing B hallway by B236/B270", (327, 325), (417, 325)),
+        ("b2-404", "B", "Wing B hallway", "Wing B narrow hallway by B260-B265", (404.5, 274), (404.5, 325)),
         # Wing F
-        ("f2-w", "F", "Wing F west hallway", "Wing F west hallway", (420, 383), (420, 573)),
-        ("f2-e", "F", "Wing F east hallway", "Wing F east hallway", (561, 383), (561, 573)),
-        ("f2-c", "F", "Wing F center hallway", "Wing F center hallway", (491, 383), (491, 573)),
-        ("f2-430", "F", "Wing F hallway", "Wing F hallway by F222/F216", (420, 430), (561, 430)),
+        ("f2-w", "F", "Wing F west hallway", "Wing F west hallway", (420, 383), (420, 575)),
+        ("f2-e", "F", "Wing F east hallway", "Wing F east hallway", (561, 383), (561, 575)),
+        ("f2-c", "F", "Wing F center hallway", "Wing F center hallway", (491, 383), (491, 575)),
+        # The west and east halves of Wing F have their cross hallways at different heights.
+        ("f2-432", "F", "Wing F hallway", "Wing F hallway by F222/F219 (west half)", (420, 432.2), (491, 432.2)),
+        ("f2-429", "F", "Wing F hallway", "Wing F hallway by F216/F210 (east half)", (491, 428.8), (561, 428.8)),
         ("f2-471", "F", "Wing F hallway", "Wing F hallway by F232/F242", (420, 471), (561, 471)),
-        ("f2-503", "F", "Wing F hallway", "Wing F hallway by F254/F260", (420, 503), (561, 503)),
-        ("f2-534", "F", "Wing F hallway", "Wing F hallway by F268/F288", (420, 534), (561, 534)),
-        ("f2-573", "F", "Wing F south hallway", "Wing F south hallway", (420, 573), (561, 573)),
+        ("f2-503", "F", "Wing F hallway", "Wing F hallway by F254/F247 (west half)", (420, 503), (491, 503)),
+        ("f2-514", "F", "Wing F hallway", "Wing F hallway by F260/F288 (east half)", (491, 514.2), (561, 514.2)),
+        ("f2-534", "F", "Wing F hallway", "Wing F hallway by F268/F253 (west half)", (420, 534.5), (491, 534.5)),
+        ("f2-575", "F", "Wing F south hallway", "Wing F south hallway", (420, 575), (561, 575)),
     ],
 }
+
+# Hallways traced exactly from the PDF's shapes (or deliberately assumed), which the
+# build must not slide around when it lines hallways up with the map's gray areas.
+EXACT = {"a-s", "e-365", "g-in", "g-left", "g-west", "g-top", "g-east", "g-right", "g-join", "j", "j-up",
+         "b2-404", "d2-355", "d2-123", "d2-362",
+         "f2-432", "f2-429", "f2-471", "f2-503", "f2-514", "f2-534", "f2-575"}
 
 # Public entrances (approximate: where outside walkways reach the building).
 # (id, label, (x, y) of the door, hallway id it opens onto)
 ENTRANCES = {
     1: [
         ("entrance-east", "East entrance", (426, 347), "c136-e"),
-        ("entrance-south", "South entrance (Wing A)", (338, 590), "a"),
+        ("entrance-south", "South entrance (Wing A)", (325.5, 590), "a-s"),
         ("entrance-north", "North entrance (Wing K)", (125, 310), "k-h"),
     ],
     2: [],

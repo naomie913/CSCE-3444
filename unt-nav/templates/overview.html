@@ -28,9 +28,15 @@
             <button type="button" data-zoom="fit" aria-label="Show all of Wing {{ wing }}">&#9635;</button>
           </div>
         </div>
+        <ul class="map-legend" aria-label="Map key">
+          <li><span class="key key-stairs"></span>Stairs</li>
+          <li><span class="key key-elevator"></span>Elevator</li>
+          <li><span class="key key-entrance"></span>Entrance</li>
+        </ul>
+        <p class="muted small" style="margin:6px 0 0">Drag to move; pinch or use + and &minus; to zoom. Zoom in to see more room numbers.</p>
       </div>
 
-      <p id="overview-hint" class="hint center">Tap a room to go there, or to start your route from it. Drag to move around the building. Closures are marked in red.</p>
+      <p id="overview-hint" class="hint center">Tap a room to go there, or to start your route from it. Closures are marked in red.</p>
       <div id="overview-room" class="card" style="margin-top:14px" hidden>
         <h2 id="overview-room-title"></h2>
         <p id="overview-room-sub" class="muted" style="margin:0"></p>

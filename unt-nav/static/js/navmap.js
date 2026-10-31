@@ -196,7 +196,7 @@
     var startName = start.room ? roomName(start.room) : placeName(start.feature);
     steps.push({ level: start.level, text: "Start at " + startName + " on Level " + start.level + "." });
 
-    var group = null, heading = null, leavingRoom = null;
+    var group = null, heading = null, leavingRoom = null, prevLabel = null;
     if (start.room && path.nodes.length > 1) {
       // Facing out of the doorway, so the first turn is left or right of the door.
       var out = N[path.nodes[1]];
@@ -213,6 +213,7 @@
         var dot = heading[0] * h[0] + heading[1] * h[1];
         if (dot > 0.7) text = "Continue along the " + group.label + " for " + ft + " ft.";
         else if (dot < -0.7) text = "Turn around and walk along the " + group.label + " for " + ft + " ft.";
+        else if (group.label === prevLabel) text = "Turn " + (cross(heading, h) > 0 ? "right" : "left") + " to stay on the " + group.label + " and walk " + ft + " ft.";
         else text = "Turn " + (cross(heading, h) > 0 ? "right" : "left") + " onto the " + group.label + " and walk " + ft + " ft.";
       }
       if (leavingRoom) {
@@ -221,6 +222,7 @@
       }
       steps.push({ level: group.level, text: text });
       heading = h;
+      prevLabel = group.label;
       group = null;
     }
 
@@ -233,6 +235,7 @@
         }
         steps.push({ level: a.level, text: "Take " + placeName(a.feature) + " " + (b.level > a.level ? "up" : "down") + " to Level " + b.level + "." });
         heading = null;
+        prevLabel = null;
         leavingRoom = null;
         lastPlace = placeName(b.feature);
         return;
@@ -241,22 +244,35 @@
         if (!b.room) return; // stepping out of a doorway
         flush();
         var name = roomName(b.room), text;
-        if (!heading || leavingRoom) {
+        var side = null;
+        if (heading && !leavingRoom) {
+          var c = cross(heading, [b.x - a.x, b.y - a.y]);
+          side = Math.abs(c) < 1e-6 ? "straight ahead" : c > 0 ? "on your right" : "on your left";
+        }
+        if (b.room.inner) {
+          // The map shows no hallway door for this room, so don't pretend there is one.
+          text = name + " is inside the room or suite " + (side || "next to " + lastPlace) +
+                 ". Go in and follow the room signs.";
+        } else if (!side) {
           text = name + " is right next to " + lastPlace + ".";
         } else {
-          var c = cross(heading, [b.x - a.x, b.y - a.y]);
-          text = Math.abs(c) < 1e-6 ? name + " is straight ahead." : name + " is on your " + (c > 0 ? "right" : "left") + ".";
+          text = side === "straight ahead" ? name + " is straight ahead." : name + " is " + side + ".";
         }
         steps.push({ level: b.level, text: text, arrive: true });
         return;
       }
       var corridor = byId(map.floors[a.level].corridors, e.corridor);
       var label = corridor ? corridor.label : "hallway";
-      if (group && group.label === label && group.level === a.level) {
+      // A new step when the hallway changes, or when the path turns within the same one.
+      // Very short pieces (where a door or junction splits a hallway) don't count as turns.
+      var dir = unit([b.x - a.x, b.y - a.y]), tiny = e.w < 15;
+      if (group && group.label === label && group.level === a.level &&
+          (tiny || !group.dir || dir[0] * group.dir[0] + dir[1] * group.dir[1] > 0.7)) {
         group.end = b; group.len += e.w;
+        if (!tiny && !group.dir) group.dir = dir;
       } else {
         flush();
-        group = { label: label, level: a.level, start: a, end: b, len: e.w };
+        group = { label: label, level: a.level, start: a, end: b, len: e.w, dir: tiny ? null : dir };
       }
     });
     flush();
@@ -264,6 +280,17 @@
   }
 
   // ---------- SVG drawing ----------
+  //
+  // The building (room shapes, hallways, route line) is drawn in map units and
+  // scales as you zoom. Everything you read - room numbers, place names, stairs and
+  // elevator markers, "You", "Closed" - is drawn as a "pin": a group placed at a map
+  // point and scaled by 1/zoom, so it stays the same size on screen. layout() then
+  // shows each label only where it fits inside its room without overlapping others,
+  // so zooming in reveals the smaller rooms' numbers.
+
+  var LABEL_PX = 11;          // every room label uses this size on screen
+  var LINE_PX = 13;           // line height for multi-line names
+  var NAME_CHARS = 14;        // wrap place names at about this many characters
 
   function el(name, attrs, parent) {
     var n = document.createElementNS(SVGNS, name);
@@ -271,16 +298,73 @@
     if (parent) parent.appendChild(n);
     return n;
   }
-  function label(parent, x, y, str, cls, extra) {
-    var t = el("text", Object.assign({ x: x, y: y, "class": cls, "text-anchor": "middle", "dominant-baseline": "central" }, extra || {}), parent);
-    t.textContent = str;
+  function center(box) { return [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2]; }
+  function isNumber(id) { return /^[A-MC]\d{3}[A-Z]?$/.test(id); }
+
+  function wrap(text) {
+    var lines = [], line = "";
+    text.split(" ").forEach(function (w) {
+      if (line && (line + " " + w).length > NAME_CHARS) { lines.push(line); line = w; }
+      else line = (line + " " + w).trim();
+    });
+    lines.push(line);
+    return lines;
+  }
+
+  /* A <text> with one <tspan> per line, centered on the pin's anchor. */
+  function textBlock(parent, lines, cls) {
+    var t = el("text", { "class": cls, "text-anchor": "middle", "font-size": LABEL_PX }, parent);
+    lines.forEach(function (ln, i) {
+      var span = el("tspan", { x: 0, y: (i - (lines.length - 1) / 2) * LINE_PX, "dominant-baseline": "central" }, t);
+      span.textContent = ln;
+    });
     return t;
   }
-  function center(box) { return [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2]; }
 
-  var FEATURE_TEXT = { stairs: function (f) { return f.label.replace("Stairs ", ""); },
-                       elevator: function (f) { return "E" + f.id.split("-")[1]; },
-                       entrance: function () { return "IN"; } };
+  /* One label per room (rooms that share a space, like E117-E124, share a label). */
+  function roomLabels(floor, destId) {
+    var groups = {};
+    floor.rooms.forEach(function (r) {
+      var key = r.box.join(",");
+      (groups[key] = groups[key] || []).push(r);
+    });
+    return Object.keys(groups).map(function (key) {
+      var rooms = groups[key].sort(function (a, b) { return a.id < b.id ? -1 : 1; });
+      var r = rooms[0], dest = rooms.some(function (x) { return x.id === destId; });
+      var number = rooms.length > 1 ? rooms[0].id + "–" + rooms[rooms.length - 1].id : r.id;
+      var variants = [];
+      if (r.name && isNumber(r.id)) variants.push([number].concat(wrap(r.name)), [number]);
+      else if (r.name) variants.push(wrap(r.name));
+      else variants.push([number]);
+      if (dest) variants = [[destId]];
+      var area = (r.box[2] - r.box[0]) * (r.box[3] - r.box[1]);
+      return { x: r.x, y: r.y, box: r.box, variants: variants, dest: dest,
+               prio: dest ? 0 : r.name ? 1 : 2, area: area };
+    }).sort(function (a, b) { return a.prio - b.prio || b.area - a.area; });
+  }
+
+  var MARKER_TEXT = {
+    stairs: function (f) { return f.label.replace("Stairs ", ""); },
+    elevator: function (f, level) { return level + "." + f.id.split("-")[1]; },
+    entrance: function () { return "In"; }
+  };
+
+  /* Stairs / elevator / entrance badge, drawn in screen pixels around (0, 0). */
+  function markerBadge(g, f, level) {
+    var text = MARKER_TEXT[f.kind](f, level), w = 22 + text.length * 5.6, h = 16;
+    el("rect", { x: -w / 2, y: -h / 2, width: w, height: h, rx: 4, "class": "badge-bg" }, g);
+    var ix = -w / 2 + 4;
+    if (f.kind === "stairs") {
+      el("path", { d: "M" + ix + " 4h3v-3h3v-3h3v-3", "class": "badge-icon" }, g);
+    } else if (f.kind === "elevator") {
+      el("path", { d: "M" + (ix + 1) + " -1l3 -4l3 4z M" + (ix + 1) + " 1l3 4l3 -4z", "class": "badge-icon solid" }, g);
+    } else {
+      el("path", { d: "M" + ix + " 0h7m-3 -3l3 3l-3 3", "class": "badge-icon" }, g);
+    }
+    var t = el("text", { x: 5.5, y: 0, "text-anchor": "middle", "dominant-baseline": "central", "class": "badge-text" }, g);
+    t.textContent = text;
+    return [-w / 2, -h / 2, w / 2, h / 2];
+  }
 
   /* opts: closed (Set), highlight (room id), route (path), graph, onRoomClick(room) */
   function renderFloor(svg, map, level, opts) {
@@ -292,7 +376,15 @@
       var b = floor.bbox;
       svg.setAttribute("viewBox", [b[0], b[1], b[2] - b[0], b[3] - b[1]].join(" "));
     }
+    var pins = [], labels = [];
+    function pin(x, y, cls, parent) {
+      var g = el("g", { "class": cls }, parent || svg);
+      var p = { g: g, x: x, y: y, rect: null };
+      pins.push(p);
+      return p;
+    }
 
+    // Building shapes, in map units.
     var shapes = el("g", { "class": "map-shapes" }, svg);
     floor.shapes.forEach(function (s) {
       var cls = s.hall ? "map-hall-shape" : s.fill === "#ffffff" ? "map-space" : "map-dept";
@@ -303,64 +395,26 @@
 
     var dest = opts.highlight ? byId(floor.rooms, opts.highlight) : null;
     if (dest) {
-      var g = el("g", { "class": "map-dest" }, svg);
-      if (dest.shape !== null && dest.shape !== undefined) el("path", { d: floor.shapes[dest.shape].d }, g);
-      else el("rect", { x: dest.box[0], y: dest.box[1], width: dest.box[2] - dest.box[0], height: dest.box[3] - dest.box[1] }, g);
+      var dg = el("g", { "class": "map-dest" }, svg);
+      if (dest.shape !== null && dest.shape !== undefined) el("path", { d: floor.shapes[dest.shape].d }, dg);
+      else el("rect", { x: dest.box[0], y: dest.box[1], width: dest.box[2] - dest.box[0], height: dest.box[3] - dest.box[1] }, dg);
     }
 
-    var texts = el("g", { "class": "map-labels" }, svg);
-    floor.labels.forEach(function (l) {
-      var cls = "map-label" + (l.minor ? " minor" : "") + (l.name ? " name" : "") + (dest && l.t === dest.id ? " dest" : "");
-      if (l.name) {
-        var words = l.t.split(" "), lines = [], line = "";
-        words.forEach(function (w) { if ((line + " " + w).trim().length > 16 && line) { lines.push(line); line = w; } else line = (line + " " + w).trim(); });
-        lines.push(line);
-        lines.forEach(function (ln, i) {
-          label(texts, l.x, l.y + (i - (lines.length - 1) / 2) * l.s * 1.15, ln, cls, { "font-size": l.s });
-        });
-      } else {
-        label(texts, l.x, l.y, l.t, cls, { "font-size": l.s });
-      }
-    });
-
-    var used = {};
-    if (opts.route) {
-      opts.route.edges.forEach(function (e, i) {
-        if (e.vertical) used[opts.graph.nodes[opts.route.nodes[i]].feature.id] = true;
-      });
+    // Route line (constant width on screen).
+    // Route nodes to draw: leave off the last step into a room that has no hallway door
+    // on the map (and the first step out of one), so the line never crosses a wall.
+    var routeNodes = null;
+    if (opts.route && opts.graph) {
+      routeNodes = opts.route.nodes.slice();
+      var lastNode = opts.graph.nodes[routeNodes[routeNodes.length - 1]];
+      if (lastNode.room && lastNode.room.inner && routeNodes.length > 2) routeNodes.pop();
+      var firstNode = opts.graph.nodes[routeNodes[0]];
+      if (firstNode.room && firstNode.room.inner && routeNodes.length > 2) routeNodes.shift();
     }
-    floor.features.forEach(function (f) {
-      var g = el("g", { "class": "map-feat map-" + f.kind + (used[f.id] ? " active" : "") }, svg);
-      var b = f.box;
-      el("rect", { x: b[0], y: b[1], width: b[2] - b[0], height: b[3] - b[1], rx: 1.5 }, g);
-      var c = center(b);
-      label(g, c[0], c[1], FEATURE_TEXT[f.kind](f), "map-feat-label");
-      el("title", {}, g).textContent = f.label;
-    });
-
-    closed.forEach(function (k) {
-      var parts = k.split(":");
-      if (Number(parts[0]) !== level) return;
-      var p;
-      if (parts[1] === "corridor") {
-        var c = byId(floor.corridors, parts[2]);
-        if (!c) return;
-        p = [(c.from[0] + c.to[0]) / 2, (c.from[1] + c.to[1]) / 2];
-      } else {
-        var f = byId(floor.features, parts[2]);
-        if (!f) return;
-        p = center(f.box);
-      }
-      var g = el("g", { "class": "map-closed" }, svg);
-      el("line", { x1: p[0] - 3.5, y1: p[1] - 3.5, x2: p[0] + 3.5, y2: p[1] + 3.5 }, g);
-      el("line", { x1: p[0] - 3.5, y1: p[1] + 3.5, x2: p[0] + 3.5, y2: p[1] - 3.5 }, g);
-      el("rect", { x: p[0] + 5, y: p[1] - 4, width: 24, height: 8, rx: 2, "class": "map-closed-tag" }, g);
-      label(g, p[0] + 17, p[1], "CLOSED", "map-closed-label");
-    });
 
     if (opts.route && opts.graph) {
       var runs = [], cur = [];
-      opts.route.nodes.forEach(function (id) {
+      routeNodes.forEach(function (id) {
         var n = opts.graph.nodes[id];
         if (n.level === level) cur.push(n);
         else { if (cur.length) runs.push(cur); cur = []; }
@@ -370,10 +424,68 @@
         if (run.length < 2) return;
         el("polyline", { points: run.map(function (n) { return n.x + "," + n.y; }).join(" "), "class": "map-route" }, svg);
       });
-      var first = opts.graph.nodes[opts.route.nodes[0]];
+    }
+
+    // Room labels.
+    var labelLayer = el("g", { "class": "map-labels" }, svg);
+    roomLabels(floor, dest && dest.id).forEach(function (l) {
+      var p = pin(l.x, l.y, "map-label-pin", labelLayer);
+      if (l.dest) {
+        var t = textBlock(p.g, l.variants[0], "map-label dest");
+        l.texts = [t];
+        l.bg = el("rect", { "class": "map-label-dest-bg", rx: 4 }, p.g);
+        p.g.insertBefore(l.bg, t);
+      } else {
+        l.texts = l.variants.map(function (v) { return textBlock(p.g, v, "map-label"); });
+      }
+      l.pin = p;
+      labels.push(l);
+    });
+
+    // Stairs, elevators and entrances.
+    var used = {};
+    if (opts.route) {
+      opts.route.edges.forEach(function (e, i) {
+        if (e.vertical) used[opts.graph.nodes[opts.route.nodes[i]].feature.id] = true;
+      });
+    }
+    floor.features.forEach(function (f) {
+      var c = center(f.box);
+      var p = pin(c[0], c[1], "map-marker map-" + f.kind + (used[f.id] ? " active" : ""));
+      p.rect = markerBadge(p.g, f, level);
+      el("title", {}, p.g).textContent = f.label;
+    });
+
+    closed.forEach(function (k) {
+      var parts = k.split(":");
+      if (Number(parts[0]) !== level) return;
+      var c;
+      if (parts[1] === "corridor") {
+        var cor = byId(floor.corridors, parts[2]);
+        if (!cor) return;
+        c = [(cor.from[0] + cor.to[0]) / 2, (cor.from[1] + cor.to[1]) / 2];
+      } else {
+        var f = byId(floor.features, parts[2]);
+        if (!f) return;
+        c = center(f.box);
+      }
+      var p = pin(c[0], c[1], "map-closed");
+      el("circle", { r: 7, "class": "closed-dot" }, p.g);
+      el("path", { d: "M-3 -3L3 3M-3 3L3 -3", "class": "closed-x" }, p.g);
+      el("rect", { x: 9, y: -7, width: 40, height: 14, rx: 4, "class": "closed-tag" }, p.g);
+      var t = el("text", { x: 29, y: 0, "text-anchor": "middle", "dominant-baseline": "central", "class": "closed-text" }, p.g);
+      t.textContent = "Closed";
+      p.rect = [-8, -8, 50, 8];
+    });
+
+    if (opts.route && opts.graph) {
+      var first = opts.graph.nodes[routeNodes[0]];
       if (first.level === level) {
-        el("circle", { cx: first.x, cy: first.y, r: 3.5, "class": "map-you" }, svg);
-        label(svg, first.x - 6, first.y - 7, "You", "map-you-label", { "text-anchor": "end" });
+        var yp = pin(first.x, first.y, "map-you");
+        el("circle", { r: 6, "class": "you-dot" }, yp.g);
+        var yt = el("text", { x: -10, y: -10, "text-anchor": "end", "class": "you-text" }, yp.g);
+        yt.textContent = "You";
+        yp.rect = [-36, -22, 8, 8];
       }
     }
 
@@ -391,6 +503,68 @@
         });
       });
     }
+
+    svg._layout = { pins: pins, labels: labels, scale: null };
+    layout(svg);
+  }
+
+  function overlaps(a, list) {
+    for (var i = 0; i < list.length; i++) {
+      var b = list[i];
+      if (a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1]) return true;
+    }
+    return false;
+  }
+
+  /* Size the pins for the current zoom and decide which labels fit. */
+  function layout(svg) {
+    var st = svg._layout, ctm = svg.getScreenCTM();
+    if (!st || !ctm || !svg.getBoundingClientRect().width) return;
+    var s = Math.abs(ctm.a);
+    if (!s || (st.scale && Math.abs(st.scale - s) / s < 0.002)) return;  // panning only: nothing to redo
+    st.scale = s;
+    var k = 1 / s, placed = [];
+    st.pins.forEach(function (p) {
+      p.g.setAttribute("transform", "translate(" + p.x + " " + p.y + ") scale(" + k + ")");
+      if (p.rect) placed.push([p.x * s + p.rect[0], p.y * s + p.rect[1], p.x * s + p.rect[2], p.y * s + p.rect[3]]);
+    });
+    st.labels.forEach(function (l) {
+      if (!l.widths) {
+        l.widths = l.texts.map(function (t) {
+          var w = 0;
+          Array.prototype.forEach.call(t.childNodes, function (span) { w = Math.max(w, span.getComputedTextLength()); });
+          return w;
+        });
+        if (l.widths.some(function (w) { return !w; })) l.widths = null;  // not rendered yet: estimate this time
+      }
+      var cx = l.x * s, cy = l.y * s;
+      var box = [l.box[0] * s, l.box[1] * s, l.box[2] * s, l.box[3] * s];
+      var shown = -1;
+      for (var i = 0; i < l.texts.length && shown < 0; i++) {
+        var lines = l.variants[i];
+        var w = (l.widths ? l.widths[i] : Math.max.apply(null, lines.map(function (ln) { return ln.length; })) * LABEL_PX * 0.6) + 4;
+        var h = lines.length * LINE_PX + 2;
+        var r = [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2];
+        var fits = r[0] >= box[0] - 1 && r[2] <= box[2] + 1 && r[1] >= box[1] - 1 && r[3] <= box[3] + 1;
+        if (l.dest || (fits && !overlaps(r, placed))) {
+          shown = i;
+          placed.push(r);
+          if (l.bg) {
+            l.bg.setAttribute("x", -w / 2 - 2); l.bg.setAttribute("y", -h / 2);
+            l.bg.setAttribute("width", w + 4); l.bg.setAttribute("height", h);
+          }
+        }
+      }
+      l.texts.forEach(function (t, i) { t.style.display = i === shown ? "" : "none"; });
+      if (l.bg) l.bg.style.display = shown < 0 ? "none" : "";
+    });
+  }
+
+  /* Re-run layout on the next frame (coalesces pinch/wheel zoom events). */
+  function scheduleLayout(svg) {
+    if (svg._layoutQueued) return;
+    svg._layoutQueued = true;
+    requestAnimationFrame(function () { svg._layoutQueued = false; layout(svg); });
   }
 
   /* Bounding box [x0, y0, x1, y1] of the route's points on one floor. */
@@ -411,7 +585,11 @@
     var vb = null, pointers = {}, moved = 0;
     var MIN_W = 40, MAX_W = 900;
 
-    function set(v) { vb = v; svg.setAttribute("viewBox", v.map(function (n) { return n.toFixed(1); }).join(" ")); }
+    function set(v) {
+      vb = v;
+      svg.setAttribute("viewBox", v.map(function (n) { return n.toFixed(1); }).join(" "));
+      scheduleLayout(svg);
+    }
     function current() {
       if (!vb) { var a = (svg.getAttribute("viewBox") || "0 0 600 600").split(/\s+/).map(Number); vb = a; }
       return vb;
@@ -485,6 +663,7 @@
       opts.controls.querySelector("[data-zoom='out']").addEventListener("click", function () { zoomCenter(1 / 1.4); });
       opts.controls.querySelector("[data-zoom='fit']").addEventListener("click", function () { if (opts.onFit) opts.onFit(); });
     }
+    window.addEventListener("resize", function () { if (svg._layout) svg._layout.scale = null; scheduleLayout(svg); });
     return { fit: fit, zoomCenter: zoomCenter };
   }
 

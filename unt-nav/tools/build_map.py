@@ -16,7 +16,7 @@ import sys
 import pymupdf
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from corridors import CORRIDORS, ENTRANCES, FEET_PER_UNIT, NAMED_PLACES  # noqa: E402
+from corridors import CORRIDORS, ENTRANCES, EXACT, FEET_PER_UNIT, NAMED_PLACES  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_PDF = os.path.join(ROOT, "data", "source", "unt_discoverypark_map.pdf")
@@ -177,20 +177,140 @@ def clamp_to_box(p, box):
     return (min(max(p[0], box[0]), box[2]), min(max(p[1], box[1]), box[3]))
 
 
-def attach(box, corridors):
-    """Pick the hallway closest to a room's box and the door point on the box."""
-    best = None
+HALL_RGB = 210          # hallways render as RGB (210, 210, 210)
+MASK_ZOOM = 4          # render at 4 px per PDF point to test what's walkable
+
+
+def walkable(page):
+    """Return inside(x, y): True where the rendered map shows hallway gray.
+
+    Uses the rendered page, not the raw shapes, because rooms are painted on top of
+    large gray areas; only the gray you can still see is hallway.
+    """
+    pix = page.get_pixmap(matrix=pymupdf.Matrix(MASK_ZOOM, MASK_ZOOM), alpha=False)
+    w, h, n, s = pix.width, pix.height, pix.n, pix.samples
+
+    def inside(x, y):
+        px, py = int(x * MASK_ZOOM), int(y * MASK_ZOOM)
+        if not (0 <= px < w and 0 <= py < h):
+            return False
+        i = (py * w + px) * n
+        return all(abs(s[i + k] - HALL_RGB) <= 1 for k in range(3))
+    return inside
+
+
+def _unit(c):
+    (x1, y1), (x2, y2) = c["from"], c["to"]
+    length = math.hypot(x2 - x1, y2 - y1)
+    ux, uy = (x2 - x1) / length, (y2 - y1) / length
+    return length, ux, uy, -uy, ux
+
+
+def snap_corridors(corridors, inside, level):
+    """Slide each hand-traced hallway sideways (never tilting it) onto the middle of the
+    real gray hallway, then re-meet hallways that joined at a corner."""
+    # Remember which hallway endpoints sat on which other hallways.
+    joins = []
+    for a in corridors:
+        for end in ("from", "to"):
+            for b in corridors:
+                if a is not b and seg_point_dist(b["from"], b["to"], a[end])[0] < 0.6:
+                    joins.append((a, end, b))
+    moved = set()
+    for c in corridors:
+        if c["id"] in EXACT:
+            continue
+        length, ux, uy, nx, ny = _unit(c)
+        x1, y1 = c["from"]
+        ts = [t + 0.5 for t in range(2, max(3, int(length) - 2))]
+
+        def frac(off):
+            return sum(inside(x1 + ux * t + nx * off, y1 + uy * t + ny * off) for t in ts) / len(ts)
+        if frac(0) >= 0.9:
+            continue  # already runs along the hallway: leave it
+        offsets = [o / 2 for o in range(-30, 31)]
+        scores = {o: frac(o) for o in offsets}
+        best = max(offsets, key=lambda o: (round(scores[o], 2), -abs(o)))
+        if scores[best] < 0.5:
+            print(f"  ! floor {level}: hallway {c['id']} doesn't line up with the map; left as traced")
+            continue
+        mids = []
+        for t in ts:
+            bx, by = x1 + ux * t + nx * best, y1 + uy * t + ny * best
+            if not inside(bx, by):
+                continue
+            hi = lo = 0.0
+            while hi < 25 and inside(bx + nx * (hi + .5), by + ny * (hi + .5)):
+                hi += .5
+            while lo < 25 and inside(bx - nx * (lo + .5), by - ny * (lo + .5)):
+                lo += .5
+            mids.append(best + (hi - lo) / 2)
+        mids.sort()
+        off = mids[len(mids) // 2]
+        c["from"] = [c["from"][0] + nx * off, c["from"][1] + ny * off]
+        c["to"] = [c["to"][0] + nx * off, c["to"][1] + ny * off]
+        moved.add(c["id"])
+    # Re-meet at corners: slide an endpoint along its own hallway onto the crossing one.
+    # Only for hallways that meet at an angle; parallel/shallow joins are left alone so a
+    # hallway is never dragged into a slant.
+    for a, end, b in joins:
+        if a["id"] not in moved and b["id"] not in moved:
+            continue
+        _, aux, auy, _, _ = _unit(a)
+        _, bux, buy, _, _ = _unit(b)
+        if abs(aux * bux + auy * buy) > 0.5:
+            continue
+        (x1, y1), (x2, y2) = a["from"], a["to"]
+        (x3, y3), (x4, y4) = b["from"], b["to"]
+        d = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
+        t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / d
+        q = [x1 + t * (x2 - x1), y1 + t * (y2 - y1)]
+        if math.hypot(q[0] - a[end][0], q[1] - a[end][1]) < 15:
+            a[end] = q
+    for c in corridors:
+        c["from"] = [round(v, 1) for v in c["from"]]
+        c["to"] = [round(v, 1) for v in c["to"]]
+
+
+def link_is_clear(door, p, inside, boxes):
+    """Does the straight link from a door to the hallway stay in hallway gray (or inside
+    the room itself / the suite it belongs to)? A couple of samples may hit lettering."""
+    length = math.hypot(p[0] - door[0], p[1] - door[1])
+    n = max(2, int(length * 2))
+    blocked = 0
+    for k in range(1, n):
+        x = door[0] + (p[0] - door[0]) * k / n
+        y = door[1] + (p[1] - door[1]) * k / n
+        if not inside(x, y) and not any(b[0] <= x <= b[2] and b[1] <= y <= b[3] for b in boxes):
+            blocked += 1
+            if blocked > 2:
+                return False
+    return True
+
+
+def attach(box, corridors, inside, parents):
+    """Pick the closest hallway the room can reach without passing through a wall.
+
+    Returns (distance, hallway id, door point, clear?)."""
+    best = clear_best = None
+    boxes = [box] + parents
     for c in corridors:
         a, b = c["from"], c["to"]
         length = math.hypot(b[0] - a[0], b[1] - a[1])
-        steps = max(1, int(length / 1.5))
+        steps = max(1, int(length / 1.0))
         for k in range(steps + 1):
             p = (a[0] + (b[0] - a[0]) * k / steps, a[1] + (b[1] - a[1]) * k / steps)
             door = clamp_to_box(p, box)
             dist = math.hypot(p[0] - door[0], p[1] - door[1])
+            if dist > 60:
+                continue
             if best is None or dist < best[0]:
                 best = (dist, c["id"], door)
-    return best
+            if (clear_best is None or dist < clear_best[0]) and link_is_clear(door, p, inside, boxes):
+                clear_best = (dist, c["id"], door)
+    if clear_best:
+        return clear_best + (True,)
+    return (best or (999, corridors[0]["id"], clamp_to_box(corridors[0]["from"], box))) + (False,)
 
 
 def extract_outlines(page, pno):
@@ -218,9 +338,11 @@ def build_floor(page, pno):
     outlines = extract_outlines(page, pno)
     corridors = [{"id": cid, "wing": wing, "label": label, "name": name, "from": list(a), "to": list(b)}
                  for cid, wing, label, name, a, b in CORRIDORS[level]]
+    inside = walkable(page)
+    snap_corridors(corridors, inside, level)
     hall_names = set()
 
-    rooms, labels = {}, []
+    rooms = {}
     for rid, cx, cy, size, text in words_with_ids(page):
         if not in_map_area(pymupdf.Rect(cx, cy, cx, cy), pno):
             continue
@@ -229,9 +351,6 @@ def build_floor(page, pno):
         if rid.startswith("C") and (si is None or (hall_si is not None and shapes[hall_si]["hall"])):
             hall_names.add(rid)  # a hallway's own number, printed in the hallway
             continue
-        if text == rid or text.startswith(rid):
-            labels.append({"t": text if RANGE_RE.match(text) else rid, "x": round(cx, 1), "y": round(cy, 1),
-                           "s": round(min(size * 0.8, 9), 1)})
         if si is not None:
             box, area = shapes[si]["bbox"], shapes[si]["area"]
         else:
@@ -244,12 +363,6 @@ def build_floor(page, pno):
                           "shape": si, "box": [round(v, 1) for v in box],
                           "x": round(cx, 1), "y": round(cy, 1), "_area": area}
 
-    # Single-letter suite labels (E215 A, B, C ...) are drawn but aren't rooms.
-    for w in page.get_text("words"):
-        if re.fullmatch(r"[A-Z]{1,2}", w[4]) and w[3] - w[1] < 9 and in_map_area(pymupdf.Rect(w[:4]), pno):
-            labels.append({"t": w[4], "x": round((w[0] + w[2]) / 2, 1), "y": round((w[1] + w[3]) / 2, 1),
-                           "s": round(min((w[3] - w[1]) * 0.8, 7), 1), "minor": True})
-
     for floor_no, search, name, wing, rtype, ids in NAMED_PLACES:
         if floor_no != level:
             continue
@@ -259,7 +372,6 @@ def build_floor(page, pno):
             continue
         hit = hits[0]
         cx, cy = (hit.x0 + hit.x1) / 2, (hit.y0 + hit.y1) / 2
-        labels.append({"t": name, "x": round(cx, 1), "y": round(cy, 1), "s": 5.5, "name": True})
         targets = [rooms[i] for i in ids if i in rooms]
         if not targets:
             si = smallest_shape(shapes, cx, cy)
@@ -271,6 +383,7 @@ def build_floor(page, pno):
                           "_area": 0, "named": True}
         for r in targets:
             r["name"], r["type"] = name, rtype
+            r["x"], r["y"] = round(cx, 1), round(cy, 1)  # label the room where the map prints its name
 
     # Stairs and elevators: "level.number" markers; elevators come first in text order.
     features, seen = [], 0
@@ -290,16 +403,27 @@ def build_floor(page, pno):
         features.append({"id": fid, "kind": "entrance", "label": label,
                          "box": [x - 5, y - 4, x + 5, y + 4], "corridor": cid, "door": [x, y]})
 
-    far = []
+    blocked = []
+    # Rooms and the suite/lab shapes drawn on the map, for "reach it through its suite".
+    all_boxes = [r["box"] for r in rooms.values()] + [sh["bbox"] for sh in shapes if not sh["hall"] and sh["area"] < 9000]
     for item in list(rooms.values()) + features:
         if "corridor" in item:
             continue
-        dist, cid, door = attach(item["box"], corridors)
+        box = item["box"]
+        area = (box[2] - box[0]) * (box[3] - box[1])
+        # Suites: a small room inside a bigger one can be reached through the bigger one.
+        parents = [b for b in all_boxes if b is not box and (b[2] - b[0]) * (b[3] - b[1]) > area
+                   and b[0] <= box[0] + 1 and b[1] <= box[1] + 1 and b[2] >= box[2] - 1 and b[3] >= box[3] - 1]
+        dist, cid, door, clear = attach(box, corridors, inside, parents)
         item["corridor"], item["door"] = cid, [round(door[0], 1), round(door[1], 1)]
-        if dist > 25:
-            far.append(f"{item['id']} ({dist:.0f} pt from {cid})")
-    if far:
-        print(f"  floor {level}: {len(far)} rooms are far from any hallway: {', '.join(far[:12])}")
+        if not clear and "kind" not in item:   # stairs/elevator boxes are estimates; don't flag them
+            # No hallway door on the map (an inner room of a suite, the end of a hallway...).
+            # The app stops the route line at the hallway instead of drawing through a wall.
+            item["inner"] = True
+            blocked.append(f"{item['id']} ({dist:.0f} pt to {cid})")
+    if blocked:
+        print(f"  floor {level}: {len(blocked)} places have no hallway door on the map "
+              f"(marked inner; reached through the neighboring room/suite): {', '.join(blocked)}")
 
     for r in rooms.values():
         r.pop("_area", None)
@@ -312,7 +436,6 @@ def build_floor(page, pno):
         "bbox": [round(min(xs) - 4), round(min(ys) - 4), round(max(xs) + 4), round(max(ys) + 4)],
         "feetPerUnit": FEET_PER_UNIT[level],
         "shapes": shapes,
-        "labels": labels,
         "corridors": corridors,
         "rooms": sorted(rooms.values(), key=lambda r: r["id"]),
         "features": features,

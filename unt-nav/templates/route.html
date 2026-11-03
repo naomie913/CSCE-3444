@@ -79,6 +79,8 @@
 
       <div class="next-card" aria-live="polite">
         <p><strong id="route-step-label">Next:</strong> <span id="route-step-text"></span></p>
+        <button class="btn btn-outline btn-sm repeat-btn" id="route-repeat" type="button" hidden
+                aria-label="Play this step again" title="Play this step again (R)">&#128257; Play this step again</button>
         <div class="step-nav">
           <button class="btn btn-outline btn-sm" id="route-prev" type="button">&larr; Back</button>
           <span class="muted small" id="route-step-count"></span>
@@ -89,7 +91,7 @@
 
       <div class="actions">
         <button class="btn btn-outline" id="route-text-btn" type="button" aria-expanded="false" aria-controls="route-steps">Text directions</button>
-        <button class="btn btn-outline" id="route-audio-btn" type="button">Audio</button>
+        <button class="btn btn-outline" id="route-audio-btn" type="button" aria-pressed="false">&#128264; Audio off</button>
       </div>
       <div class="links">
         <a href="{{ url_for('report', wing=match.wing, level=match.level, room=room) }}">Report a map problem</a>
@@ -101,5 +103,6 @@
 {% endblock %}
 {% block scripts %}
   <script src="{{ url_for('static', filename='js/navmap.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/speech.js') }}"></script>
   <script src="{{ url_for('static', filename='js/route.js') }}"></script>
 {% endblock %}

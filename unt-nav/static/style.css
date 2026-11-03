@@ -304,6 +304,8 @@ hr { border: 0; border-top: 1px solid var(--mint-border); margin: 20px 0 12px; }
 .map-closed .closed-tag { fill: #fff; stroke: var(--error); stroke-width: 1; }
 .map-closed .closed-text { font-family: "Inter", system-ui, sans-serif; font-size: 9.5px; font-weight: 700; fill: var(--error); }
 .map-hit { fill: transparent; cursor: pointer; }
+.voice-test { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 12px 0 0; }
+.next-card .repeat-btn { width: 100%; margin: 0 0 12px; }
 .map-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 10px 0 0; padding: 0; list-style: none; font-size: .82rem; color: var(--muted); }
 .map-legend li { display: flex; align-items: center; gap: 6px; }
 .map-legend .key { width: 14px; height: 10px; border-radius: 3px; border: 1px solid; }

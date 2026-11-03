@@ -1,11 +1,32 @@
 {% extends "base.html" %}
 {% block title %}Accessibility{% endblock %}
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/speech.js') }}"></script>
+  <script>
+    (function () {
+      var btn = document.getElementById("voice-test"), status = document.getElementById("voice-status");
+      if (!window.Voice || !Voice.supported) {
+        btn.disabled = true;
+        status.textContent = "This browser can't read directions aloud. Try Chrome, Edge or Safari.";
+        return;
+      }
+      btn.addEventListener("click", function () {
+        Voice.speak("Turn left onto the main hallway (C136) and walk 120 ft. B205 is on your right.");
+        status.textContent = "Playing a sample direction…";
+      });
+      // Saving here resets any on/off choice made with the Audio button on a route.
+      document.getElementById("prefs-form").addEventListener("submit", function () {
+        try { localStorage.removeItem("unt-nav-audio"); } catch (e) { /* private mode */ }
+      });
+    })();
+  </script>
+{% endblock %}
 {% block content %}
   <p class="eyebrow">Accessibility</p>
   <h1>Your settings</h1>
   <p class="lead">These settings apply on this device while you use UNT Navigation.</p>
 
-  <form method="post" action="{{ url_for('accessibility') }}">
+  <form method="post" action="{{ url_for('accessibility') }}" id="prefs-form">
     {{ csrf_field() }}
     <div class="card">
       <label class="check-row" style="margin-top:0">
@@ -14,8 +35,12 @@
       </label>
       <label class="check-row">
         <input type="checkbox" name="autoread" value="1"{% if prefs.autoread %} checked{% endif %}>
-        <span>Read directions aloud<small>Speak each step when you tap Next.</small></span>
+        <span>Read directions aloud<small>Turn on voice guidance automatically: each step is read as you tap Next.</small></span>
       </label>
+      <div class="voice-test">
+        <button class="btn btn-outline btn-sm" id="voice-test" type="button">&#128266; Test voice</button>
+        <span class="muted small" id="voice-status" role="status"></span>
+      </div>
       <label class="check-row">
         <input type="checkbox" name="largetext" value="1"{% if prefs.largetext %} checked{% endif %}>
         <span>Larger text<small>Make text bigger on every page.</small></span>
@@ -27,6 +52,6 @@
   <p class="section-label">Getting around</p>
   <div class="card">
     <p class="muted" style="margin:0 0 8px">Every wing with two levels has an elevator. Step-free routes skip stairs and use the elevator instead.</p>
-    <p class="muted" style="margin:0">On the route screen, tap <b>Text directions</b> to see every step, or <b>Audio</b> to hear the current step.</p>
+    <p class="muted" style="margin:0">On the route screen, tap <b>Text directions</b> to see every step, or <b>Audio</b> to turn voice guidance on or off. Audio uses your device's built-in voice, so check that your volume is up and your phone isn't on silent.</p>
   </div>
 {% endblock %}

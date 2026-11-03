@@ -1,5 +1,4 @@
-/* Route page: map loading (Fig 22) -> route navigation (Fig 23).
- * Polls for closures and removed maps, and recalculates the route when they change (Observer). */
+
 (function () {
   "use strict";
   var app = document.getElementById("route-app");
@@ -154,13 +153,41 @@
     state.step = Math.max(0, Math.min(state.steps.length - 1, i));
     state.viewLevel = state.steps[state.step].level;
     render(before !== state.viewLevel);
-    if (autoRead) speak();
+    if (audioOn) readStep();
   }
 
-  function speak() {
-    if (!("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(new SpeechSynthesisUtterance($("route-step-text").textContent));
+  // ---------- voice guidance ----------
+  // When audio is on, each step is read aloud as you move to it (Next, Back, or tapping a
+  // step in the list), plus arrival and route changes. Browsers only allow speech after
+  // you tap something, so nothing is read until the first tap.
+  var AUDIO_KEY = "unt-nav-audio";
+  var audioBtn = $("route-audio-btn"), repeatBtn = $("route-repeat");
+  var audioOn = false;
+  try {
+    var saved = localStorage.getItem(AUDIO_KEY);
+    audioOn = saved === null ? autoRead : saved === "1";
+  } catch (e) { audioOn = autoRead; }
+
+  function readStep(prefix, slower) {
+    var step = state.steps[state.step];
+    if (!step) return;
+    var text = step.text;
+    if (state.step === state.steps.length - 1) text += " You have arrived.";
+    Voice.speak((prefix || "") + text, { rate: slower ? 0.85 : 1 });
+  }
+
+  // remember=true only when the user taps the button; otherwise the Accessibility
+  // setting "Read directions aloud" decides.
+  function setAudio(on, remember) {
+    audioOn = on && Voice.supported;
+    if (remember) {
+      try { localStorage.setItem(AUDIO_KEY, audioOn ? "1" : "0"); } catch (e) { /* private mode */ }
+    }
+    audioBtn.setAttribute("aria-pressed", audioOn);
+    audioBtn.classList.toggle("btn-primary", audioOn);
+    audioBtn.classList.toggle("btn-outline", !audioOn);
+    audioBtn.innerHTML = audioOn ? "&#128266; Audio on" : "&#128264; Audio off";
+    if (!audioOn) Voice.stop();
   }
 
   function poll() {
@@ -181,6 +208,7 @@
             var notice = $("route-notice");
             notice.textContent = "A closure changed, so your route was updated.";
             notice.hidden = false;
+            if (audioOn) readStep("A closure changed, so your route was updated. ");
           }
         }
       })
@@ -196,12 +224,27 @@
     this.setAttribute("aria-expanded", open);
     this.textContent = open ? "Hide directions" : "Text directions";
   });
-  var audioBtn = $("route-audio-btn");
-  if (!("speechSynthesis" in window)) {
+  if (!Voice.supported) {
     audioBtn.disabled = true;
-    audioBtn.title = "Audio isn't supported in this browser";
+    audioBtn.textContent = "Audio unavailable";
+    audioBtn.title = "This browser can't read directions aloud";
+  } else {
+    setAudio(audioOn, false);
+    audioBtn.addEventListener("click", function () {
+      setAudio(!audioOn, true);
+      if (audioOn) readStep("Step " + (state.step + 1) + " of " + state.steps.length + ". ");
+    });
+    // Replay the current step (a little slower), whether or not voice guidance is on.
+    repeatBtn.hidden = false;
+    repeatBtn.addEventListener("click", function () { readStep("", true); });
+    document.addEventListener("keydown", function (e) {
+      if ((e.key === "r" || e.key === "R") && !e.ctrlKey && !e.metaKey && !e.altKey &&
+          !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) && !panels.view.hidden) {
+        readStep("", true);
+      }
+    });
+    window.addEventListener("pagehide", Voice.stop);
   }
-  audioBtn.addEventListener("click", speak);
 
   load();
 })();

@@ -1,22 +1,11 @@
-/* UNT Navigation - building map drawing and in-browser routing.
- *
- * The map (from /api/map) has one building-wide plan per floor: room shapes and
- * labels traced from the official PDF, hallway center lines, and numbered
- * stairs/elevators that connect the floors.
- *
- * buildGraph()      turns the map into a walking graph (edge weights in feet)
- * shortestPath()    Dijkstra from one or more start nodes (skips closures; step-free skips stairs)
- * buildDirections() turns a path into tap-through text steps
- * renderFloor()     draws one floor as SVG, with an optional route overlay
- * makeViewport()    pan / zoom / fit for a map <svg>
- */
+
 (function () {
   "use strict";
 
   var SVGNS = "http://www.w3.org/2000/svg";
-  var WALK_FPS = 4;        // walking speed, feet per second
-  var STAIRS_S = 20;       // seconds to climb one level
-  var ELEVATOR_S = 45;     // seconds including the wait
+  var WALK_FPS = 4;
+  var STAIRS_S = 20;
+  var ELEVATOR_S = 45;
 
   function pt(p) { return Array.isArray(p) ? p : [p.x, p.y]; }
   function dist(a, b) { a = pt(a); b = pt(b); return Math.hypot(a[0] - b[0], a[1] - b[1]); }
@@ -241,7 +230,7 @@
         return;
       }
       if (e.door) {
-        if (!b.room) return; // stepping out of a doorway
+        if (!b.room) return; 
         flush();
         var name = roomName(b.room), text;
         var side = null;

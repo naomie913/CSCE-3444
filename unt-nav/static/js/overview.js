@@ -1,4 +1,4 @@
-/* Floor overview (Fig 24): the building map zoomed to one wing; tap a room for details. */
+
 (function () {
   "use strict";
   var app = document.getElementById("overview-app");

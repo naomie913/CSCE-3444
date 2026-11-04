@@ -21,6 +21,7 @@ import mapdata
 from db import BASE_DIR, close_db, ensure_schema, get_db
 
 ROLES = {"student": "Student / Faculty", "organizer": "Event Organizer", "admin": "Admin"}
+SIGNUP_ROLE = "student"
 HEADER_LABELS = {"guest": "Guest →", "student": "Account", "organizer": "Organizer", "admin": "Admin"}
 MIN_PASSWORD_LENGTH = 8
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_.]{3,32}$")
@@ -37,9 +38,29 @@ REPORT_STATUSES = {"open": "Open", "fixed": "Fixed", "dismissed": "Dismissed"}
 DEFAULT_PREFS = {"stepfree": False, "autoread": False, "largetext": False}
 GUEST = {"id": None, "username": "Guest", "role": "guest", "role_label": "Guest"}
 
+SECRET_KEY_FILE = os.path.join(BASE_DIR, "instance", "secret_key")
+
+
+def load_secret_key():
+    """UNT_NAV_SECRET if set, else a random key created once in instance/secret_key
+    (git-ignored), so the key that signs session cookies is never public."""
+    key = os.environ.get("UNT_NAV_SECRET")
+    if key:
+        return key
+    if os.path.exists(SECRET_KEY_FILE):
+        with open(SECRET_KEY_FILE, encoding="utf-8") as fh:
+            key = fh.read().strip()
+    if not key:
+        os.makedirs(os.path.dirname(SECRET_KEY_FILE), exist_ok=True)
+        key = secrets.token_hex(32)
+        with open(SECRET_KEY_FILE, "w", encoding="utf-8") as fh:
+            fh.write(key)
+    return key
+
+
 app = Flask(__name__)
 app.config.update(
-    SECRET_KEY=os.environ.get("UNT_NAV_SECRET", "dev-only-change-me"),
+    SECRET_KEY=load_secret_key(),
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
     MAX_CONTENT_LENGTH=10 * 1024 * 1024,
@@ -260,22 +281,20 @@ def login():
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
-    form = {"username": "", "role": "student"}
+    form = {"username": ""}
     errors = {}
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
         confirm = request.form.get("confirm", "")
-        role = request.form.get("role", "student")
-        form = {"username": username, "role": role}
+        role = SIGNUP_ROLE  # organizer and admin are granted by an admin on /admin/users
+        form = {"username": username}
         if not USERNAME_RE.match(username):
             errors["username"] = "Use 3-32 letters, numbers, dots or underscores."
         if len(password) < MIN_PASSWORD_LENGTH:
             errors["password"] = f"Password must be at least {MIN_PASSWORD_LENGTH} characters."
         elif password != confirm:
             errors["confirm"] = "Passwords do not match."
-        if role not in ROLES:
-            errors["role"] = "Choose a valid role."
         if not errors:
             db = get_db()
             if db.execute("SELECT 1 FROM users WHERE username = ?", (username,)).fetchone():
@@ -286,8 +305,8 @@ def register():
                 db.commit()
                 flash("Account created. Log in to continue.", "success")
                 return redirect(url_for("login"))
-        return render_template("register.html", form=form, roles=ROLES, errors=errors), 400
-    return render_template("register.html", form=form, roles=ROLES, errors=errors)
+        return render_template("register.html", form=form, errors=errors), 400
+    return render_template("register.html", form=form, errors=errors)
 
 
 @app.route("/guest", methods=["POST"])
@@ -919,4 +938,5 @@ def handle_error(err):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=int(os.environ.get("PORT", 5000)))
+    # The debugger runs any Python typed into an error page, so it is opt-in: FLASK_DEBUG=1
+    app.run(debug=os.environ.get("FLASK_DEBUG") == "1", port=int(os.environ.get("PORT", 5000)))

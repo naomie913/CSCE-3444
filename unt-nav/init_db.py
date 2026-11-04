@@ -1,9 +1,14 @@
-"""Create the SQLite database. Run once: python init_db.py [--seed]
+"""Create the SQLite database. Run once: python init_db.py [--seed | --remove-demo]
 
 --seed adds demo data: one account per role (password: discovery123), sample
 events, a class schedule for student_demo, user reports and one closure.
-Seeding is skipped for any table that already has rows.
+Seeding is skipped for any table that already has rows. It is refused when
+UNT_NAV_ENV=production, since the demo password is public.
+
+--remove-demo deletes the demo accounts (and their saved places) from an
+existing database, e.g. before a shared deployment.
 """
+import os
 import sys
 from datetime import date, timedelta
 
@@ -71,11 +76,22 @@ def seed(con):
         )
 
 
+def remove_demo(con):
+    names = [username for username, _ in DEMO_USERS]
+    marks = ", ".join("?" for _ in names)
+    return con.execute(f"DELETE FROM users WHERE username IN ({marks})", names).rowcount
+
+
 def main():
+    if "--seed" in sys.argv and os.environ.get("UNT_NAV_ENV") == "production":
+        sys.exit("Refusing --seed: UNT_NAV_ENV=production and the demo password is public.")
     ensure_schema()
-    if "--seed" in sys.argv:
+    if "--seed" in sys.argv or "--remove-demo" in sys.argv:
         con = connect()
-        seed(con)
+        if "--seed" in sys.argv:
+            seed(con)
+        else:
+            print(f"Removed {remove_demo(con)} demo account(s).")
         con.commit()
         con.close()
     print(f"Database ready at {DATABASE}")

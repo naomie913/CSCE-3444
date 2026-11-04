@@ -9,7 +9,8 @@
        data-start="{{ start.node if start else '' }}"
        data-stepfree="{{ 1 if stepfree else 0 }}" data-autoread="{{ 1 if prefs.autoread else 0 }}"
        data-api="{{ url_for('api_map') }}"
-       data-status-api="{{ url_for('api_map_status') }}">
+       data-status-api="{{ url_for('api_map_status') }}"
+       data-speech-src="{{ url_for('static', filename='js/speech.js') }}">
 
     <section id="route-loading">
       <p class="eyebrow">Discovery Park · Wayfinding</p>
@@ -93,6 +94,7 @@
         <button class="btn btn-outline" id="route-text-btn" type="button" aria-expanded="false" aria-controls="route-steps">Text directions</button>
         <button class="btn btn-outline" id="route-audio-btn" type="button" aria-pressed="false">&#128264; Audio off</button>
       </div>
+      <p class="muted small center" id="route-voice-msg" role="status" hidden></p>
       <div class="links">
         <a href="{{ url_for('report', wing=match.wing, level=match.level, room=room) }}">Report a map problem</a>
         <a href="{{ url_for('find') }}">Start over</a>

@@ -178,12 +178,17 @@
   function etaMinutes(path) { return Math.max(1, Math.ceil(path.cost / WALK_FPS / 60)); }
   function feet(ft) { return Math.max(10, Math.round(ft / 10) * 10); }
 
+  /* Each step's `at` is the index in path.nodes where that step begins, so a route can be
+   * recalculated from the step the user is on. A route that starts mid-hallway (a re-route)
+   * starts from "where you are". */
   function buildDirections(graph, path, map) {
     var N = graph.nodes, steps = [];
     var start = N[path.nodes[0]];
-    var lastPlace = start.room ? start.room.id : placeName(start.feature);
-    var startName = start.room ? roomName(start.room) : placeName(start.feature);
-    steps.push({ level: start.level, text: "Start at " + startName + " on Level " + start.level + "." });
+    var lastPlace = start.room ? start.room.id : start.feature ? placeName(start.feature) : "where you are";
+    var startName = start.room ? roomName(start.room) : start.feature ? placeName(start.feature) : null;
+    steps.push({ level: start.level, at: 0, text: startName
+      ? "Start at " + startName + " on Level " + start.level + "."
+      : "Continue from where you are on Level " + start.level + "." });
 
     var group = null, heading = null, leavingRoom = null, prevLabel = null;
     if (start.room && path.nodes.length > 1) {
@@ -209,7 +214,7 @@
         text = "Leave " + leavingRoom + ", then " + lowerFirst(text);
         leavingRoom = null;
       }
-      steps.push({ level: group.level, text: text });
+      steps.push({ level: group.level, at: group.at, text: text });
       heading = h;
       prevLabel = group.label;
       group = null;
@@ -220,9 +225,9 @@
       if (e.vertical) {
         flush();
         if (leavingRoom) {
-          steps.push({ level: a.level, text: "Leave " + leavingRoom + " and go to " + placeName(a.feature) + " outside the door." });
+          steps.push({ level: a.level, at: 0, text: "Leave " + leavingRoom + " and go to " + placeName(a.feature) + " outside the door." });
         }
-        steps.push({ level: a.level, text: "Take " + placeName(a.feature) + " " + (b.level > a.level ? "up" : "down") + " to Level " + b.level + "." });
+        steps.push({ level: a.level, at: i, text: "Take " + placeName(a.feature) + " " + (b.level > a.level ? "up" : "down") + " to Level " + b.level + "." });
         heading = null;
         prevLabel = null;
         leavingRoom = null;
@@ -247,7 +252,7 @@
         } else {
           text = side === "straight ahead" ? name + " is straight ahead." : name + " is " + side + ".";
         }
-        steps.push({ level: b.level, text: text, arrive: true });
+        steps.push({ level: b.level, at: i, text: text, arrive: true });
         return;
       }
       var corridor = byId(map.floors[a.level].corridors, e.corridor);
@@ -261,7 +266,7 @@
         if (!tiny && !group.dir) group.dir = dir;
       } else {
         flush();
-        group = { label: label, level: a.level, start: a, end: b, len: e.w, dir: tiny ? null : dir };
+        group = { label: label, level: a.level, start: a, end: b, len: e.w, dir: tiny ? null : dir, at: i };
       }
     });
     flush();

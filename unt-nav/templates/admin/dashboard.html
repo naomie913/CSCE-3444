@@ -23,6 +23,13 @@
     </a>
   </div>
 
+  <p class="section-label">Campus administrator responsibilities</p>
+  <ul class="list">
+    {% for responsibility in responsibilities %}
+      <li><div class="row-card"><span class="row-main">{{ responsibility }}</span></div></li>
+    {% endfor %}
+  </ul>
+
   <p class="section-label">Recent user reports</p>
   {% if recent %}
     <ul class="list">

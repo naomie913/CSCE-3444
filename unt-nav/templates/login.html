@@ -9,9 +9,9 @@
     {{ csrf_field() }}
     {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
     <div class="field">
-      <label for="username">Username</label>
-      <input id="username" name="username" type="text" placeholder="Enter username"
-             value="{{ username }}" autocomplete="username" required autofocus>
+      <label for="email">UNT email</label>
+      <input id="email" name="email" type="email" placeholder="name@my.unt.edu"
+             value="{{ email }}" autocomplete="email" pattern=".+@(my\.unt|unt)\.edu" required autofocus>
     </div>
     <div class="field">
       <label for="password">Password</label>
@@ -27,6 +27,8 @@
       {{ csrf_field() }}
       <button class="link-btn" type="submit">Continue as guest</button>
     </form>
+    <a href="{{ url_for('admin_login') }}">Continue as admin</a>
+    <a href="{{ url_for('organizer_login') }}">Continue as event organizer</a>
   </div>
 {% endblock %}
 {% block footer %}<footer class="foot-note">Passwords are never displayed</footer>{% endblock %}

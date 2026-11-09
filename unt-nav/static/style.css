@@ -140,7 +140,7 @@ a.row-card:hover { border-color: var(--green); }
 .field + .field, .field-row + .field, .field + .field-row, .field-row + .field-row { margin-top: 14px; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 label, .label { display: block; font-weight: 700; font-size: .92rem; margin: 0 0 6px; }
-input[type=text], input[type=password], input[type=date], input[type=time], input[type=search],
+input[type=text], input[type=email], input[type=password], input[type=date], input[type=time], input[type=search],
 input[type=file], select, textarea {
   width: 100%; padding: 13px 14px; font: inherit; font-size: 1rem;
   border: 1.5px solid var(--mint-border); border-radius: 12px;

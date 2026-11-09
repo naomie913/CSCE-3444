@@ -7,7 +7,7 @@
 
   <form class="card" method="post" action="{{ url_for('register') }}" novalidate>
     {{ csrf_field() }}
-    {{ field('username', 'Username', form.username, errors, placeholder='Choose a username', attrs='autocomplete="username" required autofocus') }}
+    {{ field('email', 'UNT email', form.email, errors, type='email', placeholder='name@my.unt.edu', attrs='autocomplete="email" pattern=".+@my\.unt\.edu" required autofocus') }}
     {{ field('password', 'Password', '', errors, type='password', placeholder='At least 8 characters', attrs='autocomplete="new-password" minlength="8" required') }}
     {{ field('confirm', 'Confirm password', '', errors, type='password', placeholder='Re-enter password', attrs='autocomplete="new-password" required') }}
     <p class="hint">New accounts are Student / Faculty. Event organizers and admins get their role from an admin.</p>

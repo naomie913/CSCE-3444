@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Event organizer log in{% endblock %}
+{% block content %}
+  <p class="eyebrow">Event organizer</p>
+  <h1>Event organizer log in</h1>
+  <p class="lead">Sign in with the company email and temporary password provided by an administrator.</p>
+
+  <form class="card" method="post" action="{{ url_for('organizer_login') }}" novalidate>
+    {{ csrf_field() }}
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+    <div class="field">
+      <label for="email">Company email</label>
+      <input id="email" name="email" type="email" placeholder="name@company.com"
+             value="{{ email }}" autocomplete="email" required autofocus>
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" placeholder="Enter password"
+             autocomplete="current-password" required>
+    </div>
+    <button class="btn btn-primary btn-block" type="submit">Log in</button>
+  </form>
+
+  <div class="links">
+    <a href="{{ url_for('login') }}">Back to regular sign in</a>
+  </div>
+{% endblock %}
+{% block footer %}<footer class="foot-note">Passwords are never displayed</footer>{% endblock %}

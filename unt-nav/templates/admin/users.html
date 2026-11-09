@@ -1,10 +1,31 @@
 {% extends "base.html" %}
+{% from "_macros.html" import field %}
 {% block title %}Manage credentials{% endblock %}
 {% block content %}
   <p class="eyebrow">Admin · Credentials</p>
   <h1>Manage accounts</h1>
   {% set me = current_user() %}
 
+  <form class="card" method="post" action="{{ url_for('admin_users') }}" novalidate>
+    <h2>Create account</h2>
+    {{ csrf_field() }}
+    {{ field('email', 'Email', form.email, errors, type='email', placeholder='Enter email address', attrs='autocomplete="email" required') }}
+    <div class="field{% if errors.get('role') %} has-error{% endif %}">
+      <label for="role">Role</label>
+      <select id="role" name="role" required>
+        {% for key, label in roles.items() %}
+          <option value="{{ key }}"{% if key == form.role %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      {% if errors.get('role') %}<p class="field-error">{{ errors.role }}</p>{% endif %}
+    </div>
+    {{ field('password', 'Temporary password', '', errors, type='password', placeholder='At least 8 characters', attrs='autocomplete="new-password" minlength="8" required') }}
+    {{ field('confirm', 'Confirm password', '', errors, type='password', placeholder='Re-enter password', attrs='autocomplete="new-password" required') }}
+    <p class="hint">Students use name@my.unt.edu. Organizers use a company email, not a common personal provider. Admins use First.Last@unt.edu.</p>
+    <button class="btn btn-primary btn-block" type="submit">Create account</button>
+  </form>
+
+  <h2>Existing accounts</h2>
   <ul class="list">
     {% for u in users %}
       <li class="card user-row">

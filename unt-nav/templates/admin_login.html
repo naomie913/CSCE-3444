@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Administrator log in{% endblock %}
+{% block content %}
+  <p class="eyebrow">Campus administrator</p>
+  <h1>Administrator log in</h1>
+  <p class="lead">Sign in with your authorized UNT administrator account.</p>
+
+  <form class="card" method="post" action="{{ url_for('admin_login') }}" novalidate>
+    {{ csrf_field() }}
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+    <div class="field">
+      <label for="email">UNT administrator email</label>
+      <input id="email" name="email" type="email" placeholder="First.Last@unt.edu"
+             value="{{ email }}" autocomplete="email" pattern="[A-Za-z]+\.[A-Za-z]+@unt\.edu" required autofocus>
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" placeholder="Enter password"
+             autocomplete="current-password" required>
+    </div>
+    <button class="btn btn-primary btn-block" type="submit">Log in</button>
+  </form>
+
+  <div class="links">
+    <a href="{{ url_for('login') }}">Back to regular sign in</a>
+  </div>
+{% endblock %}
+{% block footer %}<footer class="foot-note">Passwords are never displayed</footer>{% endblock %}

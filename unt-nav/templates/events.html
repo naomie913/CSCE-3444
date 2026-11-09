@@ -35,7 +35,7 @@
   {% endif %}
 
   {% set user = current_user() %}
-  {% if user and user.role in ('organizer', 'admin') %}
+  {% if user and user.role in ('student', 'organizer', 'admin') %}
     <a class="btn btn-primary btn-block" href="{{ url_for('event_new') }}">+ Create event</a>
   {% endif %}
 {% endblock %}

@@ -29,12 +29,16 @@
         {{ row(url_for('admin_dashboard'), '▦', 'Admin dashboard', 'Maps, closures, reports and accounts') }}
       {% endif %}
       {{ row(url_for('find'), '⚲', 'Find a place', 'Search a room number') }}
-      {{ row(url_for('saved'), '⚑', 'Saved places', 'Your schedule and favorite rooms') }}
+      {% if user.role != 'organizer' %}
+        {{ row(url_for('saved'), '⚑', 'Saved places', 'Your schedule and favorite rooms') }}
+      {% endif %}
       {{ row(url_for('events'), '★', 'Events', 'Events at Discovery Park') }}
-      {% if user.role in ('organizer', 'admin') %}
+      {% if user.role in ('student', 'organizer', 'admin') %}
         {{ row(url_for('event_new'), '+', 'Create event', 'Publish an event with a venue') }}
       {% endif %}
-      {{ row(url_for('report'), '!', 'Report a map problem', 'Wrong info, missing room, blocked path') }}
+      {% if user.role != 'organizer' %}
+        {{ row(url_for('report'), '!', 'Report a map problem', 'Wrong info, missing room, blocked path') }}
+      {% endif %}
       {{ row(url_for('accessibility'), '♿', 'Accessibility', 'Step-free routes, audio, larger text') }}
     </ul>
   {% endif %}

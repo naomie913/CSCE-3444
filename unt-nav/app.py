@@ -18,13 +18,15 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
 import mapdata
+from admin_policy import (ADMIN_RESPONSIBILITIES, valid_account_email,
+                          valid_admin_email, valid_company_email,
+                          valid_login_email, valid_student_email)
 from db import BASE_DIR, close_db, ensure_schema, get_db
 
 ROLES = {"student": "Student / Faculty", "organizer": "Event Organizer", "admin": "Admin"}
 SIGNUP_ROLE = "student"
 HEADER_LABELS = {"guest": "Guest →", "student": "Account", "organizer": "Organizer", "admin": "Admin"}
 MIN_PASSWORD_LENGTH = 8
-USERNAME_RE = re.compile(r"^[A-Za-z0-9_.]{3,32}$")
 TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 MAP_UPLOAD_EXTS = {".svg", ".json", ".png", ".jpg", ".jpeg", ".pdf"}
@@ -265,43 +267,91 @@ def welcome():
 def login():
     nxt = safe_next(request.values.get("next"))
     if request.method == "POST":
-        username = request.form.get("username", "").strip()
+        email = request.form.get("email", "").strip()
         password = request.form.get("password", "")
+        if not valid_login_email(email):
+            flash("Use your UNT email address.", "error")
+            return render_template("login.html", email=email, next=nxt), 400
         user = get_db().execute(
-            "SELECT id, username, password_hash, role FROM users WHERE username = ?", (username,)
+            "SELECT id, username, password_hash, role FROM users"
+            " WHERE username = ? AND role = 'student'", (email,)
         ).fetchone()
         if user is None or not check_password_hash(user["password_hash"], password):
-            flash("Incorrect username or password.", "error")
-            return render_template("login.html", username=username, next=nxt), 401
+            flash("Incorrect email or password.", "error")
+            return render_template("login.html", email=email, next=nxt), 401
         session.clear()
         session["user_id"] = user["id"]
         return redirect(nxt or url_for("home"))
-    return render_template("login.html", username="", next=nxt)
+    return render_template("login.html", email="", next=nxt)
+
+
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    nxt = safe_next(request.values.get("next"))
+    if request.method == "POST":
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "")
+        if not valid_admin_email(email):
+            flash("Use your administrator email (First.Last@unt.edu).", "error")
+            return render_template("admin_login.html", email=email, next=nxt), 400
+        user = get_db().execute(
+            "SELECT id, password_hash FROM users WHERE username = ? AND role = 'admin'",
+            (email,),
+        ).fetchone()
+        if user is None or not check_password_hash(user["password_hash"], password):
+            flash("Incorrect email or password.", "error")
+            return render_template("admin_login.html", email=email, next=nxt), 401
+        session.clear()
+        session["user_id"] = user["id"]
+        return redirect(nxt or url_for("admin_dashboard"))
+    return render_template("admin_login.html", email="", next=nxt)
+
+
+@app.route("/organizer/login", methods=["GET", "POST"])
+def organizer_login():
+    nxt = safe_next(request.values.get("next"))
+    if request.method == "POST":
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "")
+        if not valid_company_email(email):
+            flash("Use a valid company email address.", "error")
+            return render_template("organizer_login.html", email=email, next=nxt), 400
+        user = get_db().execute(
+            "SELECT id, password_hash FROM users WHERE username = ? AND role = 'organizer'",
+            (email,),
+        ).fetchone()
+        if user is None or not check_password_hash(user["password_hash"], password):
+            flash("Incorrect email or password.", "error")
+            return render_template("organizer_login.html", email=email, next=nxt), 401
+        session.clear()
+        session["user_id"] = user["id"]
+        return redirect(nxt or url_for("event_new"))
+    return render_template("organizer_login.html", email="", next=nxt)
 
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
-    form = {"username": ""}
+    form = {"email": ""}
     errors = {}
     if request.method == "POST":
-        username = request.form.get("username", "").strip()
+        email = request.form.get("email", "").strip()
         password = request.form.get("password", "")
         confirm = request.form.get("confirm", "")
         role = SIGNUP_ROLE  # organizer and admin are granted by an admin on /admin/users
-        form = {"username": username}
-        if not USERNAME_RE.match(username):
-            errors["username"] = "Use 3-32 letters, numbers, dots or underscores."
+        form = {"email": email}
+        if not valid_student_email(email):
+            errors["email"] = "Enter a valid UNT email address (name@my.unt.edu)."
         if len(password) < MIN_PASSWORD_LENGTH:
             errors["password"] = f"Password must be at least {MIN_PASSWORD_LENGTH} characters."
         elif password != confirm:
             errors["confirm"] = "Passwords do not match."
         if not errors:
             db = get_db()
-            if db.execute("SELECT 1 FROM users WHERE username = ?", (username,)).fetchone():
-                errors["username"] = "That username is already taken."
+            if db.execute("SELECT 1 FROM users WHERE username = ?", (email,)).fetchone():
+                errors["email"] = "An account with that email already exists."
             else:
                 db.execute("INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)",
-                           (username, generate_password_hash(password), role))
+                           (email, generate_password_hash(password), role))
                 db.commit()
                 flash("Account created. Log in to continue.", "success")
                 return redirect(url_for("login"))
@@ -454,7 +504,9 @@ def can_manage_event(event):
     user = current_user()
     if not user:
         return False
-    return user["role"] == "admin" or (user["role"] == "organizer" and event["created_by"] == user["id"])
+    return user["role"] == "admin" or (
+        user["role"] == "student" and event["created_by"] == user["id"]
+    )
 
 
 app.jinja_env.globals["can_manage_event"] = can_manage_event
@@ -518,7 +570,7 @@ def event_detail(event_id):
 
 
 @app.route("/events/new", methods=["GET", "POST"])
-@roles_required("organizer", "admin")
+@roles_required("student", "organizer", "admin")
 def event_new():
     form = {"name": "", "event_date": "", "event_time": "", "description": "", "wing": "B", "room": ""}
     errors = {}
@@ -539,7 +591,7 @@ def event_new():
 
 
 @app.route("/events/<int:event_id>/edit", methods=["GET", "POST"])
-@roles_required("organizer", "admin")
+@roles_required("student", "admin")
 def event_edit(event_id):
     event = get_event(event_id)
     if not can_manage_event(event):
@@ -562,7 +614,7 @@ def event_edit(event_id):
 
 
 @app.route("/events/<int:event_id>/cancel", methods=["POST"])
-@roles_required("organizer", "admin")
+@roles_required("student", "admin")
 def event_cancel(event_id):
     event = get_event(event_id)
     if not can_manage_event(event):
@@ -577,7 +629,7 @@ def event_cancel(event_id):
 # ---------- saved places ----------
 
 @app.route("/saved")
-@member_required
+@roles_required("student", "admin")
 def saved():
     kind = "location" if request.args.get("tab") == "locations" else "schedule"
     rows = get_db().execute(
@@ -587,7 +639,7 @@ def saved():
 
 
 @app.route("/saved/new", methods=["GET", "POST"])
-@member_required
+@roles_required("student", "admin")
 def saved_new():
     kind = "location" if request.values.get("kind") == "location" else "schedule"
     form = {"title": "", "days": "", "start_time": "", "room": request.args.get("room", "")}
@@ -620,7 +672,7 @@ def saved_new():
 
 
 @app.route("/saved/<int:item_id>/delete", methods=["POST"])
-@member_required
+@roles_required("student", "admin")
 def saved_delete(item_id):
     db = get_db()
     row = db.execute("SELECT kind FROM saved_places WHERE id = ? AND user_id = ?",
@@ -636,7 +688,7 @@ def saved_delete(item_id):
 # ---------- reports ----------
 
 @app.route("/report", methods=["GET", "POST"])
-@member_required
+@roles_required("student", "admin")
 def report():
     form = {
         "category": "blocked_path",
@@ -700,7 +752,8 @@ def admin_dashboard():
     recent = db.execute(
         "SELECT * FROM reports WHERE status = 'open' ORDER BY created_at DESC LIMIT 5").fetchall()
     return render_template("admin/dashboard.html", admin_area=True, tab="dashboard",
-                           stats=stats, recent=recent, categories=REPORT_CATEGORIES)
+                           stats=stats, recent=recent, categories=REPORT_CATEGORIES,
+                           responsibilities=ADMIN_RESPONSIBILITIES)
 
 
 @app.route("/admin/maps")
@@ -852,11 +905,43 @@ def admin_report_detail(report_id):
                            statuses=REPORT_STATUSES, categories=REPORT_CATEGORIES)
 
 
-@app.route("/admin/users")
+@app.route("/admin/users", methods=["GET", "POST"])
 @admin_required
 def admin_users():
-    rows = get_db().execute("SELECT id, username, role, created_at FROM users ORDER BY username").fetchall()
-    return render_template("admin/users.html", admin_area=True, tab="dashboard", users=rows, roles=ROLES)
+    db = get_db()
+    form = {"email": "", "role": "student"}
+    errors = {}
+    if request.method == "POST":
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "")
+        confirm = request.form.get("confirm", "")
+        role = request.form.get("role", "")
+        form = {"email": email, "role": role}
+        if role not in ROLES:
+            errors["role"] = "Select a valid account role."
+        elif not valid_account_email(email, role):
+            if role == "admin":
+                errors["email"] = "Enter an administrator email in the format First.Last@unt.edu."
+            elif role == "organizer":
+                errors["email"] = "Enter a company email; common personal email providers aren't accepted."
+            else:
+                errors["email"] = "Enter a student email in the format name@my.unt.edu."
+        if len(password) < MIN_PASSWORD_LENGTH:
+            errors["password"] = f"Password must be at least {MIN_PASSWORD_LENGTH} characters."
+        elif password != confirm:
+            errors["confirm"] = "Passwords do not match."
+        if not errors and db.execute(
+                "SELECT 1 FROM users WHERE username = ? COLLATE NOCASE", (email,)).fetchone():
+            errors["email"] = "An account with that email already exists."
+        if not errors:
+            db.execute("INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)",
+                       (email, generate_password_hash(password), role))
+            db.commit()
+            flash(f"Created {ROLES[role].lower()} account for {email}.", "success")
+            return redirect(url_for("admin_users"))
+    rows = db.execute("SELECT id, username, role, created_at FROM users ORDER BY username").fetchall()
+    return render_template("admin/users.html", admin_area=True, tab="dashboard",
+                           users=rows, roles=ROLES, form=form, errors=errors)
 
 
 @app.route("/admin/users/<int:user_id>", methods=["POST"])
@@ -874,6 +959,8 @@ def admin_user_update(user_id):
             abort(400)
         if is_self and role != "admin":
             flash("You can't remove your own admin role.", "error")
+        elif not valid_account_email(row["username"], role):
+            flash("That email address doesn't match the selected role's email requirements.", "error")
         else:
             db.execute("UPDATE users SET role = ? WHERE id = ?", (role, user_id))
             flash(f"{row['username']} is now {ROLES[role]}.", "success")
